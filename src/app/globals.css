@@ -1,0 +1,307 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: PrimaryFont;
+  src: url(/assets/font/NeueMachina/NeueMachina-Regular.otf);
+}
+@font-face {
+  font-family: PrimaryBoldFont;
+  src: url(/assets/font/NeueMachina/NeueMachina-Ultrabold.otf);
+}
+@font-face {
+  font-family: PrimaryLightFont;
+  src: url(/assets/font/NeueMachina/NeueMachina-Light.otf);
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 224 71.4% 4.1%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 71.4% 4.1%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71.4% 4.1%;
+
+    --primary: 220.9 39.3% 11%;
+    --primary-foreground: 210 20% 98%;
+
+    --secondary: 220 14.3% 95.9%;
+    --secondary-foreground: 220.9 39.3% 11%;
+
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 46.1%;
+
+    --accent: 220 14.3% 95.9%;
+    --accent-foreground: 220.9 39.3% 11%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 20% 98%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 224 71.4% 4.1%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 224 71.4% 4.1%;
+    --foreground: 210 20% 98%;
+
+    --card: 224 71.4% 4.1%;
+    --card-foreground: 210 20% 98%;
+
+    --popover: 224 71.4% 4.1%;
+    --popover-foreground: 210 20% 98%;
+
+    --primary: 210 20% 98%;
+    --primary-foreground: 220.9 39.3% 11%;
+
+    --secondary: 215 27.9% 16.9%;
+    --secondary-foreground: 210 20% 98%;
+
+    --muted: 215 27.9% 16.9%;
+    --muted-foreground: 217.9 10.6% 64.9%;
+
+    --accent: 215 27.9% 16.9%;
+    --accent-foreground: 210 20% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 20% 98%;
+
+    --border: 215 27.9% 16.9%;
+    --input: 215 27.9% 16.9%;
+    --ring: 216 12.2% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.poppins-thin {
+  font-family: "Poppins", sans-serif;
+  font-weight: 100;
+  font-style: normal;
+}
+
+.poppins-extralight {
+  font-family: "Poppins", sans-serif;
+  font-weight: 200;
+  font-style: normal;
+}
+
+.poppins-light {
+  font-family: "Poppins", sans-serif;
+  font-weight: 300;
+  font-style: normal;
+}
+
+.poppins-regular {
+  font-family: "Poppins", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.poppins-medium {
+  font-family: "Poppins", sans-serif;
+  font-weight: 500;
+  font-style: normal;
+}
+
+.poppins-semibold {
+  font-family: "Poppins", sans-serif;
+  font-weight: 600;
+  font-style: normal;
+}
+
+.poppins-bold {
+  font-family: "Poppins", sans-serif;
+  font-weight: 700;
+  font-style: normal;
+}
+
+.poppins-extrabold {
+  font-family: "Poppins", sans-serif;
+  font-weight: 800;
+  font-style: normal;
+}
+
+.poppins-black {
+  font-family: "Poppins", sans-serif;
+  font-weight: 900;
+  font-style: normal;
+}
+
+.poppins-thin-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 100;
+  font-style: italic;
+}
+
+.poppins-extralight-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 200;
+  font-style: italic;
+}
+
+.poppins-light-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 300;
+  font-style: italic;
+}
+
+.poppins-regular-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 400;
+  font-style: italic;
+}
+
+.poppins-medium-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 500;
+  font-style: italic;
+}
+
+.poppins-semibold-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 600;
+  font-style: italic;
+}
+
+.poppins-bold-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 700;
+  font-style: italic;
+}
+
+.poppins-extrabold-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 800;
+  font-style: italic;
+}
+
+.poppins-black-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 900;
+  font-style: italic;
+}
+/* Custom scrollbar styles */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px; /* Width of the scrollbar */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #1a202c; /* Background of the scrollbar track (dark grey) */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+@keyframes glow {
+  0% {
+    background: radial-gradient(circle, #FFA200 38%, transparent 52%);
+  }
+  25% {
+    background: radial-gradient(circle, #FFA200 38%, transparent 53%);
+  }
+  50% {
+    background: radial-gradient(circle, #FFA200 38%, transparent 54%);
+  }
+  100% {
+    background: radial-gradient(circle, #FFA200 38%, transparent 55%);
+  }
+}
+
+.glow {
+  border-radius: 50%;
+  animation: glow 2s infinite ease-in-out;
+}
+
+@media (max-width: 768px) {
+  @keyframes glow {
+  0% {
+    background: radial-gradient(circle, #FFA200 38%, transparent 42%);
+  }
+  25% {
+    background: radial-gradient(circle, #FFA200 38%, transparent 43%);
+  }
+  50% {
+    background: radial-gradient(circle, #FFA200 38%, transparent 44%);
+  }
+  100% {
+    background: radial-gradient(circle, #FFA200 38%, transparent 45%);
+  }
+}
+.glow {
+  border-radius: 50%;
+  animation: glow 2s infinite ease-in-out;
+}
+}
+
+/* @media (max-width: 400px) {
+  @keyframes glow {
+  0% {
+    background: radial-gradient(circle, #FFA200 30%, transparent 35%);
+  }
+  25% {
+    background: radial-gradient(circle, #FFA200 30%, transparent 36%);
+  }
+  50% {
+    background: radial-gradient(circle, #FFA200 30%, transparent 37%);
+  }
+  100% {
+    background: radial-gradient(circle, #FFA200 30%, transparent 38%);
+  }
+}
+
+.glow {
+  border-radius: 50%;
+  animation: glow 2s infinite ease-in-out;
+}
+} */
+
+.word-spacing {
+  word-spacing: -1 c5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #4a5568; /* Color of the scrollbar handle (darker grey) */
+  border-radius: 6px; /* Roundness of the scrollbar handle */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #2d3748; /* Color of the scrollbar handle on hover (even darker grey) */
+}
+
+.mfer {
+  display: flex;
+  justify-content: start; /* Default justify-content */
+}
+
+/* Apply justify-content: end to even elements */
+.mfer:nth-child(odd) {
+  justify-content: end;
+}
+
+* {
+  font-family: PrimaryFont, Verdana, Geneva, Tahoma, sans-serif;
+  font-display: swap;
+  -webkit-tap-highlight-color: transparent;
+}
