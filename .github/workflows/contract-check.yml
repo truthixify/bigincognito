@@ -1,0 +1,32 @@
+name: Cairo Contract Check
+
+on:
+  push:
+    paths:
+      - 'contract_/**'
+  pull_request:
+    paths:
+      - 'contract_/**'
+
+jobs:
+  cairo-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Scarb (Cairo toolchain)
+        run: |
+          curl https://raw.githubusercontent.com/software-mansion/scarb/main/install.sh | bash
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Run Cairo format check
+        run: |
+          cd contract_
+          scarb fmt --check
+
+      - name: Run Cairo tests
+        run: |
+          cd contract_
+          scarb test
