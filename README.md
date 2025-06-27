@@ -1,3 +1,7 @@
+# Big Inc (Big Incognito): An artist on onchain: [IG](https://www.instagram.com/big_inc_?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==) 
+
+## A product of [MusicStrk](https://github.com/hackinsync/musicstrk), or the vision of [MusicStrk](https://github.com/hackinsync/musicstrk).
+
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
 ## Getting Started
