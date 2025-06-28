@@ -2,31 +2,67 @@ name: Cairo Contract Check
 
 on:
   push:
+    branches: [main]
     paths:
       - 'contract_/**'
   pull_request:
+    branches: [main]
     paths:
       - 'contract_/**'
 
 jobs:
-  cairo-check:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Install Scarb (Cairo toolchain)
-        run: |
-          curl https://raw.githubusercontent.com/software-mansion/scarb/main/install.sh | bash
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
 
-      - name: Run Cairo format check
+      - name: Install ASDF
+        uses: asdf-vm/actions/setup@v2
+
+      - name: Install Scarb
         run: |
-          cd contract_
+          git clone https://github.com/software-mansion/asdf-scarb.git ~/.asdf/plugins/scarb
+          asdf install scarb 2.11.2
+          asdf global scarb 2.11.2
+
+      - name: Install snforge via cargo
+        run: |
+          asdf plugin add starknet-foundry
+          asdf install starknet-foundry 0.38.3
+          asdf global starknet-foundry 0.38.3
+
+      - name: Verify installations
+        run: |
+          scarb --version
+          which snforge || echo "snforge not found in PATH"
+          ~/.local/bin/snforge --version || echo "snforge binary not executable"
+
+      - name: Check formatting
+        run: |
+          cd contracts
           scarb fmt --check
 
-      - name: Run Cairo tests
+      - name: Run tests
         run: |
-          cd contract_
-          scarb test
+          export PATH=$PATH:/root/.local/bin
+          cd contracts
+          snforge test
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Scarb.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
