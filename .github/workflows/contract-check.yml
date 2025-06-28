@@ -48,13 +48,13 @@ jobs:
 
       - name: Check formatting
         run: |
-          cd contracts
+          cd contract_
           scarb fmt --check
 
       - name: Run tests
         run: |
           export PATH=$PATH:/root/.local/bin
-          cd contracts
+          cd contract_
           snforge test
 
       - name: Cache dependencies
