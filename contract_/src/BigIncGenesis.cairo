@@ -34,6 +34,7 @@ trait IBigIncGenesis<TContractState> {
 
 #[starknet::contract]
 mod BigIncGenesis {
+    use core::traits::Into;
     use openzeppelin::access::ownable::OwnableComponent;
     use openzeppelin::security::pausable::PausableComponent;
     use openzeppelin::security::reentrancyguard::ReentrancyGuardComponent;
@@ -42,9 +43,7 @@ mod BigIncGenesis {
         Map, StorageMapReadAccess, StorageMapWriteAccess, StoragePointerReadAccess,
         StoragePointerWriteAccess,
     };
-    use starknet::{ContractAddress, get_caller_address, get_contract_address, get_block_timestamp};
-    use core::traits::Into;
-
+    use starknet::{ContractAddress, get_block_timestamp, get_caller_address, get_contract_address};
     use super::IBigIncGenesis;
 
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
