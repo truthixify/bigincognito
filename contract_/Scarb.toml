@@ -7,11 +7,12 @@ edition = "2024_07"
 
 [dependencies]
 openzeppelin = "0.20.0"
-starknet = "2.9.2"
+starknet = "2.11.2"
 
 [dev-dependencies]
-snforge_std = "0.37.0"
-assert_macros = "2.9.2"
+snforge_std = "0.38.3"
+assert_macros = "2.11.2"
+
 
 [[target.starknet-contract]]
 sierra = true

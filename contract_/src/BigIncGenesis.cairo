@@ -367,7 +367,7 @@ mod BigIncGenesis {
                     shareholders.append(shareholder);
                 }
                 i += 1;
-            };
+            }
 
             shareholders
         }
