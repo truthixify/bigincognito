@@ -34,6 +34,7 @@ trait IBigIncGenesis<TContractState> {
 
 #[starknet::contract]
 mod BigIncGenesis {
+    use core::traits::Into;
     use openzeppelin::access::ownable::OwnableComponent;
     use openzeppelin::security::pausable::PausableComponent;
     use openzeppelin::security::reentrancyguard::ReentrancyGuardComponent;
@@ -42,7 +43,7 @@ mod BigIncGenesis {
         Map, StorageMapReadAccess, StorageMapWriteAccess, StoragePointerReadAccess,
         StoragePointerWriteAccess,
     };
-    use starknet::{ContractAddress, get_caller_address, get_contract_address};
+    use starknet::{ContractAddress, get_block_timestamp, get_caller_address, get_contract_address};
     use super::IBigIncGenesis;
 
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
@@ -101,6 +102,7 @@ mod BigIncGenesis {
         Donate: Donate,
         SharesSeized: SharesSeized,
         AllSharesSold: AllSharesSold,
+        Withdrawn: Withdrawn,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -140,6 +142,17 @@ mod BigIncGenesis {
 
     #[derive(Drop, starknet::Event)]
     struct AllSharesSold {}
+
+
+    #[derive(Drop, starknet::Event)]
+    struct Withdrawn {
+        #[key]
+        token_address: ContractAddress,
+        amount: u256,
+        owner: ContractAddress,
+        timestamp: u256,
+    }
+
 
     #[constructor]
     fn constructor(
@@ -295,6 +308,10 @@ mod BigIncGenesis {
 
             let owner = self.ownable.owner();
             token.transfer(owner, amount);
+
+            //     Emit Withdrawn event
+            let ts: u256 = get_block_timestamp().into();
+            self.emit(Event::Withdrawn(Withdrawn { token_address, amount, owner, timestamp: ts }));
 
             self.reentrancy_guard.end();
         }
