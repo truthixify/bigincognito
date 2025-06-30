@@ -7,10 +7,14 @@ import { Button } from "@components/ui/button";
 import { InstagramLogoIcon } from "@radix-ui/react-icons";
 import emoji from "react-easy-emoji";
 import { SocialIcon } from "react-social-icons";
+import BackedUp from '@components/BackedUp';
+
+
 export default function Page() {
   return (
     <main className="w-full h-full max-w-screen-2xl mx-auto">
       <Hero />
+      <BackedUp />
       <section className="py-8 max-md:py-4 relative max-md:top-32 w-full">
         <h2 className="text-2xl text-ourWhite text-center">
           <span className="text-gray-400">𝅗𝅥♭♯</span> SINGING SUN{" "}
