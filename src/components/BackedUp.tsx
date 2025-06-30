@@ -2,9 +2,9 @@ import React from "react"
 import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import { useInView } from "react-intersection-observer"
-import StarkWare from "../../public/assets/img/StarkWave.svg"
-import StarkNet from "../../public/assets/img/StarkNet.svg"
-import OnlyDust from '../../public/assets/img/OnlyDust.svg'
+import StarkWare from "../../public/assets/img/stark_ware.svg"
+import StarkNet from "../../public/assets/img/stark_net.png"
+import OnlyDust from '../../public/assets/img/only_dust.svg'
 
 const BackedBy: React.FC = () => {
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
@@ -114,7 +114,7 @@ const BackedBy: React.FC = () => {
                             style={{ transitionDelay: "200ms" }}
                         >
                             <div className="w-32 h-16 md:w-40 md:h-20 relative opacity-70 group-hover:opacity-100 transition-opacity duration-300">
-                                <Image src={StarkWare} alt="StarkWare" fill className="object-contain" />
+                                <Image src={StarkWare} alt="StarkWare" fill className="object-contain" style={{ filter: "brightness(0) invert(1)" }} />
                             </div>
                         </div>
 
@@ -125,7 +125,7 @@ const BackedBy: React.FC = () => {
                             style={{ transitionDelay: "400ms" }}
                         >
                             <div className="w-32 h-16 md:w-40 md:h-20 relative opacity-70 group-hover:opacity-100 transition-opacity duration-300">
-                                <Image src={StarkNet} alt="Starknet" fill className="object-contain" />
+                                <Image src={StarkNet} alt="Starknet" fill className="object-contain" style={{ filter: "brightness(0) invert(1)" }} />
                             </div>
                         </div>
 
