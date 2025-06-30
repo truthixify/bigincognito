@@ -4,7 +4,7 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable @next/next/no-img-element */
 import { readContracts, http, createConfig, writeContract } from '@wagmi/core'
-import { polygon } from '@wagmi/core/chains'
+import { polygon } from 'wagmi/chains'
 import { ShareChart } from "@components/ShareChart";
 import { ShareModal } from "@components/ShareModal";
 import { Card, CardHeader, CardTitle, CardContent } from "@components/ui/card";

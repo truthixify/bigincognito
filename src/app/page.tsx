@@ -17,8 +17,8 @@ export default function Page() {
       <BackedUp />
       <section className="py-8 max-md:py-4 relative max-md:top-32 w-full">
         <h2 className="text-2xl text-ourWhite text-center">
-          <span className="text-gray-400">𝅗𝅥♭♯</span> SINGING SUN{" "}
-          <span className="text-gray-400">♪♫</span>
+          <span className="text-gray-400">♯</span> SINGING SUN{" "}
+          <span className="text-gray-400">♪</span>
         </h2>
         <Karaoke />
       </section>

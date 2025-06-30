@@ -2,9 +2,9 @@ import React from "react"
 import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import { useInView } from "react-intersection-observer"
-import StarkWare from "../../public/assets/img/stark_ware.svg"
-import StarkNet from "../../public/assets/img/stark_net.png"
-import OnlyDust from '../../public/assets/img/only_dust.svg'
+import StarkWare from "../../public/assets/img/starkware.svg"
+import StarkNet from "../../public/assets/img/starknet.png"
+import OnlyDust from '../../public/assets/img/onlydust.svg'
 
 const BackedBy: React.FC = () => {
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
