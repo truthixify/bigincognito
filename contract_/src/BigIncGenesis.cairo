@@ -23,8 +23,14 @@ trait IBigIncGenesis<TContractState> {
     // Owner functions
     fn withdraw(ref self: TContractState, token_address: ContractAddress, amount: u256);
     fn seize_shares(ref self: TContractState, shareholder: ContractAddress);
+    fn set_partner_share_cap(ref self: TContractState, token_address: ContractAddress, cap: u256);
+    fn remove_partner_share_cap(ref self: TContractState, token_address: ContractAddress);
     fn pause(ref self: TContractState);
     fn unpause(ref self: TContractState);
+
+    // Partner view functions
+    fn get_partner_share_cap(self: @TContractState, token_address: ContractAddress) -> u256;
+    fn get_shares_minted_by_partner(self: @TContractState, token_address: ContractAddress) -> u256;
 
     // Ownable functions
     fn get_owner(self: @TContractState) -> ContractAddress;
@@ -80,6 +86,9 @@ mod BigIncGenesis {
         shares_sold: u256,
         available_shares: u256,
         is_presale_active: bool,
+        // Partner token share caps
+        partner_share_cap: Map<ContractAddress, u256>,
+        shares_minted_by_partner: Map<ContractAddress, u256>,
         // Shareholder management
         shareholders: Map<ContractAddress, u256>,
         is_shareholder_map: Map<ContractAddress, bool>,
@@ -103,6 +112,7 @@ mod BigIncGenesis {
         SharesSeized: SharesSeized,
         AllSharesSold: AllSharesSold,
         Withdrawn: Withdrawn,
+        PartnerShareCapSet: PartnerShareCapSet,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -151,6 +161,13 @@ mod BigIncGenesis {
         amount: u256,
         owner: ContractAddress,
         timestamp: u256,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct PartnerShareCapSet {
+        #[key]
+        token_address: ContractAddress,
+        cap: u256,
     }
 
 
@@ -217,6 +234,17 @@ mod BigIncGenesis {
             let new_shares_sold = self.shares_sold.read() + shares_bought;
 
             assert(shares_bought <= self.available_shares.read(), 'Exceeds available shares');
+
+            // Check partner share cap if set
+            let partner_cap = self.partner_share_cap.read(token_address);
+            if partner_cap > 0 {
+                let current_partner_shares = self.shares_minted_by_partner.read(token_address);
+                assert(
+                    current_partner_shares + shares_bought <= partner_cap,
+                    'Exceeds partner share cap'
+                );
+                self.shares_minted_by_partner.write(token_address, current_partner_shares + shares_bought);
+            }
 
             self.shares_sold.write(new_shares_sold);
 
@@ -347,6 +375,22 @@ mod BigIncGenesis {
             self.pausable.unpause();
         }
 
+        fn set_partner_share_cap(ref self: ContractState, token_address: ContractAddress, cap: u256) {
+            self.ownable.assert_only_owner();
+            self._validate_token(token_address);
+            
+            self.partner_share_cap.write(token_address, cap);
+            self.emit(PartnerShareCapSet { token_address, cap });
+        }
+
+        fn remove_partner_share_cap(ref self: ContractState, token_address: ContractAddress) {
+            self.ownable.assert_only_owner();
+            self._validate_token(token_address);
+            
+            self.partner_share_cap.write(token_address, 0);
+            self.emit(PartnerShareCapSet { token_address, cap: 0 });
+        }
+
         // View functions
         fn get_available_shares(self: @ContractState) -> u256 {
             self.available_shares.read()
@@ -402,6 +446,14 @@ mod BigIncGenesis {
 
         fn is_presale_active(self: @ContractState) -> bool {
             self.is_presale_active.read()
+        }
+
+        fn get_partner_share_cap(self: @ContractState, token_address: ContractAddress) -> u256 {
+            self.partner_share_cap.read(token_address)
+        }
+
+        fn get_shares_minted_by_partner(self: @ContractState, token_address: ContractAddress) -> u256 {
+            self.shares_minted_by_partner.read(token_address)
         }
 
         fn get_owner(self: @ContractState) -> ContractAddress {
