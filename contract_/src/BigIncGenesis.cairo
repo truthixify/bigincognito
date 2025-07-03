@@ -1,7 +1,7 @@
 use starknet::ContractAddress;
 
 #[starknet::interface]
-trait IBigIncGenesis<TContractState> {
+pub trait IBigIncGenesis<TContractState> {
     // Core functionality
     fn mint_share(ref self: TContractState, token_address: ContractAddress);
     fn transfer_share(ref self: TContractState, to: ContractAddress, share_amount: u256);
@@ -39,7 +39,7 @@ trait IBigIncGenesis<TContractState> {
 }
 
 #[starknet::contract]
-mod BigIncGenesis {
+pub mod BigIncGenesis {
     use core::traits::Into;
     use openzeppelin::access::ownable::OwnableComponent;
     use openzeppelin::security::pausable::PausableComponent;
@@ -241,9 +241,11 @@ mod BigIncGenesis {
                 let current_partner_shares = self.shares_minted_by_partner.read(token_address);
                 assert(
                     current_partner_shares + shares_bought <= partner_cap,
-                    'Exceeds partner share cap'
+                    'Exceeds partner share cap',
                 );
-                self.shares_minted_by_partner.write(token_address, current_partner_shares + shares_bought);
+                self
+                    .shares_minted_by_partner
+                    .write(token_address, current_partner_shares + shares_bought);
             }
 
             self.shares_sold.write(new_shares_sold);
@@ -375,10 +377,12 @@ mod BigIncGenesis {
             self.pausable.unpause();
         }
 
-        fn set_partner_share_cap(ref self: ContractState, token_address: ContractAddress, cap: u256) {
+        fn set_partner_share_cap(
+            ref self: ContractState, token_address: ContractAddress, cap: u256,
+        ) {
             self.ownable.assert_only_owner();
             self._validate_token(token_address);
-            
+
             self.partner_share_cap.write(token_address, cap);
             self.emit(PartnerShareCapSet { token_address, cap });
         }
@@ -386,7 +390,7 @@ mod BigIncGenesis {
         fn remove_partner_share_cap(ref self: ContractState, token_address: ContractAddress) {
             self.ownable.assert_only_owner();
             self._validate_token(token_address);
-            
+
             self.partner_share_cap.write(token_address, 0);
             self.emit(PartnerShareCapSet { token_address, cap: 0 });
         }
@@ -452,7 +456,9 @@ mod BigIncGenesis {
             self.partner_share_cap.read(token_address)
         }
 
-        fn get_shares_minted_by_partner(self: @ContractState, token_address: ContractAddress) -> u256 {
+        fn get_shares_minted_by_partner(
+            self: @ContractState, token_address: ContractAddress,
+        ) -> u256 {
             self.shares_minted_by_partner.read(token_address)
         }
 
