@@ -1,77 +1,96 @@
 "use client";
-import { useState } from "react";
-import { useWallet } from "@/context/WalletContext";
+import {
+  Connector,
+  useAccount,
+  useConnect,
+  useDisconnect,
+} from "@starknet-react/core";
 import { Button } from "./ui/button";
-
-const networks = [
-  { name: "Mainnet", id: "mainnet", chainId: "SN_MAIN" },
-  { name: "Sepolia Testnet", id: "sepolia", chainId: "SN_SEPOLIA" },
-];
+import { useStarknetkitConnectModal, StarknetkitConnector } from "starknetkit";
 
 export default function ConnectButton() {
-  const { account, connect, disconnect, isConnected, connectors } = useWallet();
-  const [showOptions, setShowOptions] = useState(false);
-  const [selectedNetwork, setSelectedNetwork] = useState(networks[0]);
+  const { disconnect } = useDisconnect();
+  const { address } = useAccount();
+  const { connect, connectors } = useConnect();
+  const { starknetkitConnectModal } = useStarknetkitConnectModal({
+    connectors: connectors as StarknetkitConnector[],
+  });
 
-  const shortAddress = (address: string) =>
-    address.slice(0, 6) + "..." + address.slice(-4);
+  async function connectWallet() {
+    const { connector } = await starknetkitConnectModal();
+    if (!connector) {
+      return;
+    }
+    await connect({ connector: connector as Connector });
+  }
 
-  const handleConnect = (connector: any) => {
-    connect({
-      connector,
-    });
-    setShowOptions(false);
-  };
-
-  if (isConnected && account) {
+  if (!address) {
     return (
-      <Button
-        onClick={disconnect}
-        className="bg-red-600 text-white px-4 py-2 rounded-xl shadow-md hover:bg-red-700 transition"
-      >
-        {shortAddress(account)}
-      </Button>
+      <div className="relative inline-flex items-center justify-center gap-4 group">
+        <div className="absolute w-[230px] h-[50px] duration-1000 opacity-60 transitiona-all bg-gradient-to-r from-indigo-500 via-pink-500 to-yellow-400 rounded-xl blur-lg filter group-hover:opacity-100 group-hover:duration-200" />
+        <a
+          onClick={connectWallet}
+          role="button"
+          className="group relative inline-flex items-center justify-center text-base rounded-xl bg-gray-900 px-8 py-3 font-semibold text-white transition-all duration-200 hover:bg-gray-800 hover:shadow-lg hover:-translate-y-0.5 hover:shadow-gray-600/30"
+          title="payment"
+          href="#"
+        >
+          Connect Wallet
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 10 10"
+            height={10}
+            width={10}
+            fill="none"
+            className="mt-0.5 ml-2 -mr-1 stroke-white stroke-2"
+          >
+            <path
+              d="M0 5h7"
+              className="transition opacity-0 group-hover:opacity-100"
+            />
+            <path
+              d="M1 1l4 4-4 4"
+              className="transition group-hover:translate-x-[3px]"
+            />
+          </svg>
+        </a>
+      </div>
     );
   }
 
   return (
-    <div className="relative inline-block text-left">
-      <Button
-        onClick={() => setShowOptions((prev) => !prev)}
-        className="bg-purple-600 text-white px-4 py-2 rounded-xl shadow-md hover:bg-purple-700 transition"
-      >
-        Connect Wallet
-      </Button>
-
-      {showOptions && (
-        <div className="absolute right-0 mt-2 w-56 rounded-xl bg-white shadow-lg border border-gray-200 z-50 p-2">
-          {/* Select de red */}
-          <select
-            onChange={(e) =>
-              setSelectedNetwork(networks.find((n) => n.id === e.target.value)!)
-            }
-            className="mb-3 p-2 border rounded w-full text-sm"
-            value={selectedNetwork.id}
+    <>
+      <div className="relative inline-flex items-center justify-center gap-4 group">
+        <div className="absolute w-[230px] h-[50px] duration-1000 opacity-60 transitiona-all bg-gradient-to-r from-indigo-500 via-pink-500 to-yellow-400 rounded-xl blur-lg filter group-hover:opacity-100 group-hover:duration-200" />
+        <a
+          onClick={() => disconnect}
+          role="button"
+          className="group relative inline-flex items-center justify-center text-base rounded-xl bg-gray-900 px-8 py-3 font-semibold text-white transition-all duration-200 hover:bg-gray-800 hover:shadow-lg hover:-translate-y-0.5 hover:shadow-gray-600/30"
+          title="payment"
+        >
+          Disconnect Wallet
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 10 10"
+            height={10}
+            width={10}
+            fill="none"
+            className="mt-0.5 ml-2 -mr-1 stroke-white stroke-2"
           >
-            {networks.map((network) => (
-              <option key={network.id} value={network.id}>
-                {network.name}
-              </option>
-            ))}
-          </select>
-
-          {/* Lista de wallets */}
-          {connectors.map((connector: any) => (
-            <button
-              key={connector.id}
-              onClick={() => handleConnect(connector)}
-              className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded"
-            >
-              {connector.name || connector.id}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+            <path
+              d="M0 5h7"
+              className="transition opacity-0 group-hover:opacity-100"
+            />
+            <path
+              d="M1 1l4 4-4 4"
+              className="transition group-hover:translate-x-[3px]"
+            />
+          </svg>
+        </a>
+      </div>
+      <div className="p-2 bg-gray-700 rounded-lg ">
+        Connected: {address?.slice(0, 6)}...{address?.slice(-4)}
+      </div>
+    </>
   );
 }

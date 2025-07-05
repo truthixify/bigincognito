@@ -1,15 +1,14 @@
 "use client";
 import {
+  Connector,
   ConnectVariables,
+  publicProvider,
   StarknetConfig,
-  useAccount,
-  useConnect,
-  useDisconnect,
+  voyager,
 } from "@starknet-react/core";
-import { UseMutateFunction } from "@tanstack/react-query";
+import { InjectedConnector } from "@starknet-react/core";
 import { createContext, useContext, useMemo } from "react";
-import { mainnet } from "@starknet-react/chains";
-import { RpcProvider } from "starknet";
+import { mainnet, sepolia } from "@starknet-react/chains";
 
 export interface WalletContextType {
   account: `0x${string}` | undefined;
@@ -21,43 +20,22 @@ export interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
-export const WalletInternalProvider = ({
-  children,
-}: {
-  children: React.ReactNode;
-}) => {
-  const { address } = useAccount();
-  const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
-  const isConnected = Boolean(address);
-
-  const contextValue = useMemo(
-    () => ({
-      account: address,
-      isConnected,
-      connect,
-      disconnect,
-      connectors
-    }),
-    [address, isConnected, connect, disconnect, connectors]
-  );
-  return (
-    <WalletContext.Provider value={contextValue}>
-      {children}
-    </WalletContext.Provider>
-  );
-};
-
 export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
-  const provider = new RpcProvider({
-    nodeUrl: "https://starknet-mainnet.public.blastapi.io",
-  });
+  const connectors = [
+    new InjectedConnector({ options: { id: 'braavos', name: 'Braavos' } }),
+    new InjectedConnector({ options: { id: 'argentX', name: 'Ready Wallet (formerly Argent)' } }),
+    new InjectedConnector({ options: { id: 'metamask', name: 'MetaMask' } }),
+    new InjectedConnector({ options: { id: 'okxwallet', name: 'OKX' } }),
+  ];
 
   return (
-    <StarknetConfig provider={() => provider} chains={[mainnet]}>
-        <WalletInternalProvider>
-            {children}
-        </WalletInternalProvider>
+    <StarknetConfig
+      chains={[mainnet, sepolia]}
+      provider={publicProvider()}
+      connectors={connectors as Connector[]}
+      explorer={voyager}
+    >
+      {children}
     </StarknetConfig>
   );
 };
