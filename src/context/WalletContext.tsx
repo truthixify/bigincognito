@@ -1,48 +1,34 @@
-"use client";
-import {
-  Connector,
-  ConnectVariables,
-  publicProvider,
-  StarknetConfig,
-  voyager,
-} from "@starknet-react/core";
-import { InjectedConnector } from "@starknet-react/core";
-import { createContext, useContext, useMemo } from "react";
-import { mainnet, sepolia } from "@starknet-react/chains";
+import { createContext, useContext } from 'react'
+import { useAccount, useConnect, useDisconnect, ConnectVariables, Connector } from '@starknet-react/core'
 
 export interface WalletContextType {
   account: `0x${string}` | undefined;
-  isConnected: Boolean;
+  isConnected: boolean;
   connect: (args?: ConnectVariables) => void;
   disconnect: () => void;
-  connectors: ConnectVariables["connector"][];
+  connectors: Connector[];
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
-export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
-  const connectors = [
-    new InjectedConnector({ options: { id: 'braavos', name: 'Braavos' } }),
-    new InjectedConnector({ options: { id: 'argentX', name: 'Ready Wallet (formerly Argent)' } }),
-    new InjectedConnector({ options: { id: 'metamask', name: 'MetaMask' } }),
-    new InjectedConnector({ options: { id: 'okxwallet', name: 'OKX' } }),
-  ];
+export const WalletProvider = ({ children, connectors }: { children: React.ReactNode; connectors: Connector[] }) => {
+  const { address } = useAccount();
+  const { connect } = useConnect();
+  const { disconnect } = useDisconnect();
 
-  return (
-    <StarknetConfig
-      chains={[mainnet, sepolia]}
-      provider={publicProvider()}
-      connectors={connectors as Connector[]}
-      explorer={voyager}
-    >
-      {children}
-    </StarknetConfig>
-  );
+  const value: WalletContextType = {
+    account: address,
+    isConnected: !!address,
+    connect,
+    disconnect,
+    connectors,
+  };
+
+  return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
 };
 
 export const useWallet = () => {
   const context = useContext(WalletContext);
-  if (!context)
-    throw new Error("useWallet must be used within a WalletProvider");
+  if (!context) throw new Error("useWallet must be used within a WalletProvider");
   return context;
 };

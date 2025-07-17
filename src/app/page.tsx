@@ -8,8 +8,6 @@ import { InstagramLogoIcon } from "@radix-ui/react-icons";
 import emoji from "react-easy-emoji";
 import { SocialIcon } from "react-social-icons";
 import BackedUp from "@components/BackedUp";
-import { WalletProvider } from "@context/WalletContext";
-import ConnectButton from "@components/ConnectButton";
 
 export default function Page() {
   return (
@@ -217,6 +215,6 @@ export default function Page() {
           </span>
         </div>
       </footer>
-    </main>
+    </main> 
   );
 }
