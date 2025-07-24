@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - './**'
-      - '!contract_/**' 
+      - '!contract_/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
 
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./ 
+        working-directory: ./
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -23,12 +23,25 @@ jobs:
         with:
           node-version: 18
           cache: 'pnpm'
-          cache-dependency-path: './pnpm-lock.yaml' 
+          cache-dependency-path: './pnpm-lock.yaml'
 
-      - name: Install pnpm
+      - name: Print PATH before pnpm setup (for debugging)
+        run: echo "PATH before pnpm setup: $PATH"
+
+      - name: Setup pnpm
         uses: pnpm/action-setup@v2
         with:
           version: 8
+
+      - name: Print PATH after pnpm setup (for debugging)
+        run: echo "PATH after pnpm setup: $PATH"
+
+      - name: Verify pnpm installation
+        run: pnpm --version
+
+      - name: Install pnpm using npm (fallback if pnpm/action-setup fails)
+        if: failure()
+        run: npm install -g pnpm@8
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
