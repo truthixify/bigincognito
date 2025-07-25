@@ -23,12 +23,12 @@ jobs:
           tool-versions: contract_/.tool-versions
       - name: Check Scarb Formatting
         run: scarb fmt --check
+        working-directory: contract_ 
+
   build-and-test:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v3
-
+      - uses: actions/checkout@v4 
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -58,15 +58,14 @@ jobs:
           ~/.local/bin/snforge --version || echo "snforge binary not executable"
 
       - name: Check formatting
-        run: |
-          cd contract_
-          scarb fmt --check
+        run: scarb fmt --check
+        working-directory: contract_ 
 
       - name: Run tests
         run: |
           export PATH=$PATH:/root/.local/bin
-          cd contract_
           snforge test
+        working-directory: contract_ 
 
       - name: Cache dependencies
         uses: actions/cache@v3
