@@ -7,13 +7,13 @@ use snforge_std::{
 };
 use starknet::{ContractAddress, contract_address_const};
 
-const OWNER: felt252 = 'owner';
-const USER1: felt252 = 'user1';
-const USER2: felt252 = 'user2';
+pub const OWNER: felt252 = 'owner';
+pub const USER1: felt252 = 'user1';
+pub const USER2: felt252 = 'user2';
 const USDT_INITIAL_SUPPLY: u256 = 1000000000000_u256; // 1M USDT with 6 decimals
 const USDC_INITIAL_SUPPLY: u256 = 1000000000000_u256; // 1M USDC with 6 decimals
 
-fn deploy_mock_erc20(
+pub fn deploy_mock_erc20(
     name: felt252, symbol: felt252, initial_supply: u256, recipient: ContractAddress,
 ) -> ContractAddress {
     let contract = declare("MockERC20").unwrap().contract_class();
@@ -39,7 +39,7 @@ fn deploy_mock_erc20(
     contract_address
 }
 
-fn deploy_big_inc_genesis(
+pub fn deploy_big_inc_genesis(
     usdt_address: ContractAddress, usdc_address: ContractAddress,
 ) -> ContractAddress {
     let contract = declare("BigIncGenesis").unwrap().contract_class();
@@ -53,7 +53,7 @@ fn deploy_big_inc_genesis(
     contract_address
 }
 
-fn setup() -> (ContractAddress, ContractAddress, ContractAddress) {
+pub fn setup() -> (ContractAddress, ContractAddress, ContractAddress) {
     let user1 = contract_address_const::<USER1>();
     let usdt_address = deploy_mock_erc20('USDT', 'USDT', USDT_INITIAL_SUPPLY, user1);
     let usdc_address = deploy_mock_erc20('USDC', 'USDC', USDC_INITIAL_SUPPLY, user1);
@@ -62,7 +62,7 @@ fn setup() -> (ContractAddress, ContractAddress, ContractAddress) {
     (big_inc_address, usdt_address, usdc_address)
 }
 
-#[cfg(test)]
+#[test]
 fn test_set_partner_share_cap_success() {
     let (big_inc_address, usdt_address, _usdc_address) = setup();
     let big_inc = IBigIncGenesisDispatcher { contract_address: big_inc_address };
@@ -78,7 +78,7 @@ fn test_set_partner_share_cap_success() {
     assert(cap == 10000000_u256, 'Partner cap not set correctly');
 }
 
-#[cfg(test)]
+#[test]
 #[should_panic(expected: ('Caller is not the owner',))]
 fn test_set_partner_share_cap_not_owner() {
     let (big_inc_address, usdt_address, _usdc_address) = setup();
@@ -91,7 +91,7 @@ fn test_set_partner_share_cap_not_owner() {
     stop_cheat_caller_address(big_inc_address);
 }
 
-#[cfg(test)]
+#[test]
 #[should_panic(expected: ('Invalid token address',))]
 fn test_set_partner_share_cap_invalid_token() {
     let (big_inc_address, _usdt_address, _usdc_address) = setup();
@@ -105,7 +105,7 @@ fn test_set_partner_share_cap_invalid_token() {
     stop_cheat_caller_address(big_inc_address);
 }
 
-#[cfg(test)]
+#[test]
 fn test_remove_partner_share_cap_success() {
     let (big_inc_address, usdt_address, _usdc_address) = setup();
     let big_inc = IBigIncGenesisDispatcher { contract_address: big_inc_address };
