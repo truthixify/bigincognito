@@ -109,7 +109,7 @@ pub mod BigIncGenesis {
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {
+    pub enum Event {
         #[flat]
         OwnableEvent: OwnableComponent::Event,
         #[flat]
@@ -128,11 +128,11 @@ pub mod BigIncGenesis {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct ShareMinted {
+    pub struct ShareMinted {
         #[key]
-        buyer: ContractAddress,
-        shares_bought: u256,
-        amount: u256,
+        pub buyer: ContractAddress,
+        pub shares_bought: u256,
+        pub amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
