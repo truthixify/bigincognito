@@ -1,6 +1,7 @@
 use contract_::BigIncGenesis::{
     BigIncGenesis, IBigIncGenesisDispatcher, IBigIncGenesisDispatcherTrait,
 };
+use core::num::traits::Zero;
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 use snforge_std::{CheatSpan, EventSpyAssertionsTrait, cheat_caller_address, spy_events};
 use starknet::ContractAddress;
@@ -145,11 +146,43 @@ fn test_genesis_transfer_share_success() {
 
 #[test]
 #[should_panic(expected: 'Insufficient shares')]
-fn test_genesis_transfer_share_should_panic_on_insufficient_shares() {}
+fn test_genesis_transfer_share_should_panic_on_insufficient_shares() {
+    let (genesis, _) = default_mint_context();
+    let shares = genesis.get_shares(charlie());
+    cheat_caller_address(genesis.contract_address, charlie(), CheatSpan::Indefinite);
+    genesis.transfer_share(alice(), shares + 1);
+}
 
 #[test]
 #[should_panic(expected: 'Cannot transfer to zero address')]
-fn test_genesis_transfer_share_should_panic_on_zero_address() {}
+fn test_genesis_transfer_share_should_panic_on_zero_address() {
+    let (genesis, _) = default_mint_context();
+    let shares = genesis.get_shares(charlie());
+    cheat_caller_address(genesis.contract_address, charlie(), CheatSpan::Indefinite);
+    genesis.transfer_share(Zero::zero(), shares);
+}
+
+#[test]
+fn test_genesis_donate_success() {
+    let (genesis, usdt, _) = setup();
+    let amount = 1000;
+    mint(array![(charlie(), amount)], usdt);
+    let mut spy = spy_events();
+    let previous_balance = usdt.balance_of(genesis.contract_address);
+    assert(previous_balance == 0, 'PREV BALANCE SHOULD BE ZERO');
+
+    cheat_caller_address(usdt.contract_address, charlie(), CheatSpan::TargetCalls(1));
+    usdt.approve(genesis.contract_address, amount);
+    cheat_caller_address(genesis.contract_address, charlie(), CheatSpan::TargetCalls(1));
+    genesis.donate(usdt.contract_address, amount);
+
+    let new_balance = usdt.balance_of(genesis.contract_address);
+    assert(new_balance == amount, 'CONTRACT BALANCE MISMATCH');
+    let event = BigIncGenesis::Event::Donate(
+        BigIncGenesis::Donate { donor: charlie(), token_address: usdt.contract_address, amount },
+    );
+    spy.assert_emitted(@array![(genesis.contract_address, event)]);
+}
 
 #[test]
 #[should_panic(expected: 'Exceeds available shares')]

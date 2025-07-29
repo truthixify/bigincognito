@@ -148,11 +148,11 @@ pub mod BigIncGenesis {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Donate {
+    pub struct Donate {
         #[key]
-        donor: ContractAddress,
-        token_address: ContractAddress,
-        amount: u256,
+        pub donor: ContractAddress,
+        pub token_address: ContractAddress,
+        pub amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
