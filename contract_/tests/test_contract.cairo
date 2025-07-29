@@ -1,8 +1,10 @@
-use contract_::BigIncGenesis::{BigIncGenesis, IBigIncGenesisDispatcher, IBigIncGenesisDispatcherTrait};
+use contract_::BigIncGenesis::{
+    BigIncGenesis, IBigIncGenesisDispatcher, IBigIncGenesisDispatcherTrait,
+};
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 use snforge_std::{CheatSpan, EventSpyAssertionsTrait, cheat_caller_address, spy_events};
-use starknet::{ContractAddress};
-use super::setup::{owner, setup, deploy_mock_erc20};
+use starknet::ContractAddress;
+use super::setup::{deploy_mock_erc20, owner, setup};
 
 
 // fn mint_share(ref self: TContractState, token_address: ContractAddress);
@@ -105,12 +107,73 @@ fn test_genesis_mint_share_should_panic_on_invalid_token() {
     feign_mint_share(genesis, token, amount);
 }
 
-#[test]
-#[should_panic(expected: 'Exceeds available shares')]
-fn test_genesis_mint_share_should_panic_on_partner_share_cap_exceeded() {}
+fn default_mint_context() -> (IBigIncGenesisDispatcher, IERC20Dispatcher) {
+    let (genesis, usdt, _) = setup();
+    let amount = 10000;
+    feign_mint_share(genesis, usdt, amount);
+    (genesis, usdt)
+}
 
 #[test]
 fn test_genesis_transfer_share_success() {
+    let (genesis, _) = default_mint_context();
+    // shares have been minted to charlie
+    let shares = genesis.get_shares(charlie());
+    let alice_shares = genesis.get_shares(alice());
+    assert(alice_shares == 0, 'ALICE SHOULD HAVE NO SHARES');
+    cheat_caller_address(genesis.contract_address, charlie(), CheatSpan::TargetCalls(1));
 
+    let amount = shares / 2;
+    let remaining_amount = shares - amount;
+
+    let mut spy = spy_events();
+    genesis.transfer_share(alice(), amount);
+    let alice_shares = genesis.get_shares(alice());
+    assert(alice_shares == amount, 'ALICE SHARES MISMATCH');
+
+    let shares = genesis.get_shares(charlie());
+    assert(shares == remaining_amount, 'CHARLIE SHARES MISMATCH');
+
+    let share_holders = genesis.get_shareholders();
+    assert(share_holders.len() == 2, 'INCORRECT SHARE HOLDERS');
+
+    let event = BigIncGenesis::Event::TransferShare(
+        BigIncGenesis::TransferShare { from: charlie(), to: alice(), share_amount: amount },
+    );
+    spy.assert_emitted(@array![(genesis.contract_address, event)]);
 }
+
+#[test]
+#[should_panic(expected: 'Insufficient shares')]
+fn test_genesis_transfer_share_should_panic_on_insufficient_shares() {}
+
+#[test]
+#[should_panic(expected: 'Cannot transfer to zero address')]
+fn test_genesis_transfer_share_should_panic_on_zero_address() {}
+
+#[test]
+#[should_panic(expected: 'Exceeds available shares')]
+fn test_genesis_mint_share_should_panic_on_exceeded_available_shares() {}
+
+// let partner_cap = self.partner_share_cap.read(token_address);
+//             if partner_cap > 0 {
+//                 let current_partner_shares = self.shares_minted_by_partner.read(token_address);
+//                 assert(
+//                     current_partner_shares + shares_received <= partner_cap,
+//                     'Exceeds partner share cap',
+//                 );
+//                 self
+//                     .shares_minted_by_partner
+//                     .write(token_address, current_partner_shares + shares_received);
+//             }
+
+#[test]
+#[should_panic(expected: 'Exceeds partner share cap')]
+fn test_genesis_mint_share_should_panic_on_partner_share_cap_exceeded() {
+    let (genesis, usdt, _) = setup();
+    let amount = 0;
+}
+
+#[test]
+fn test_genesis_transfer_share_success() {}
 

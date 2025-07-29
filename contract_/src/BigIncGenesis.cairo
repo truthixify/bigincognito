@@ -139,12 +139,12 @@ pub mod BigIncGenesis {
     struct PresaleEnded {}
 
     #[derive(Drop, starknet::Event)]
-    struct TransferShare {
+    pub struct TransferShare {
         #[key]
-        from: ContractAddress,
+        pub from: ContractAddress,
         #[key]
-        to: ContractAddress,
-        share_amount: u256,
+        pub to: ContractAddress,
+        pub share_amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
