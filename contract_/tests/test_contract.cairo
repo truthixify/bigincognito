@@ -1,8 +1,8 @@
-use contract_::BigIncGenesis::{BigIncGenesis, IBigIncGenesisDispatcherTrait};
+use contract_::BigIncGenesis::{BigIncGenesis, IBigIncGenesisDispatcher, IBigIncGenesisDispatcherTrait};
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 use snforge_std::{CheatSpan, EventSpyAssertionsTrait, cheat_caller_address, spy_events};
-use starknet::{ContractAddress, contract_address_const};
-use super::setup::{owner, setup};
+use starknet::{ContractAddress};
+use super::setup::{owner, setup, deploy_mock_erc20};
 
 
 // fn mint_share(ref self: TContractState, token_address: ContractAddress);
@@ -66,16 +66,20 @@ fn mint(targets: Array<(ContractAddress, u256)>, dispatcher: IERC20Dispatcher) {
     }
 }
 
+fn feign_mint_share(genesis: IBigIncGenesisDispatcher, token: IERC20Dispatcher, amount: u256) {
+    mint(array![(charlie(), amount)], token);
+    cheat_caller_address(token.contract_address, charlie(), CheatSpan::TargetCalls(1));
+    token.approve(genesis.contract_address, amount);
+    cheat_caller_address(genesis.contract_address, charlie(), CheatSpan::TargetCalls(1));
+    genesis.mint_share(token.contract_address);
+}
+
 #[test]
 fn test_genesis_mint_share_success() {
     let (genesis, usdt, _) = setup();
     let amount = 10000;
-    mint(array![(charlie(), amount)], usdt);
-    cheat_caller_address(usdt.contract_address, charlie(), CheatSpan::TargetCalls(1));
-    usdt.approve(genesis.contract_address, amount);
-    cheat_caller_address(genesis.contract_address, charlie(), CheatSpan::TargetCalls(1));
     let mut spy = spy_events();
-    genesis.mint_share(usdt.contract_address);
+    feign_mint_share(genesis, usdt, amount);
 
     let presale_share_valuation = genesis.get_presale_share_valuation();
     let shares_bought = (amount * 100000000_u256) / presale_share_valuation;
@@ -93,9 +97,20 @@ fn test_genesis_mint_share_success() {
 
 #[test]
 #[should_panic(expected: 'Invalid token address')]
-fn test_genesis_mint_share_should_panic_on_invalid_token() {}
+fn test_genesis_mint_share_should_panic_on_invalid_token() {
+    let (genesis, _, _) = setup();
+    let amount = 1000;
+    let contract_address = deploy_mock_erc20("TOKEN", "TKN", 1000000, owner());
+    let token = IERC20Dispatcher { contract_address };
+    feign_mint_share(genesis, token, amount);
+}
 
 #[test]
 #[should_panic(expected: 'Exceeds available shares')]
 fn test_genesis_mint_share_should_panic_on_partner_share_cap_exceeded() {}
+
+#[test]
+fn test_genesis_transfer_share_success() {
+
+}
 
