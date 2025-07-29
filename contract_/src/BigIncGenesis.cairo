@@ -21,7 +21,7 @@ pub trait IBigIncGenesis<TContractState> {
     fn is_presale_active(self: @TContractState) -> bool;
 
     // Owner functions
-    fn withdraw(ref self: TContractState, token_address: ContractAddress, amount: u256);
+    // fn withdraw(ref self: TContractState, token_address: ContractAddress, amount: u256);
     fn seize_shares(ref self: TContractState, shareholder: ContractAddress);
     fn set_partner_share_cap(ref self: TContractState, token_address: ContractAddress, cap: u256);
     fn remove_partner_share_cap(ref self: TContractState, token_address: ContractAddress);
@@ -45,11 +45,52 @@ pub trait IBigIncGenesis<TContractState> {
         ref self: TContractState, token_address: ContractAddress, tokens_per_share: u256,
     );
     fn get_partner_token_rate(self: @TContractState, token_address: ContractAddress) -> u256;
+
+    // Governance withdrawal functions
+    fn submit_withdrawal_request(
+        ref self: TContractState,
+        token_address: ContractAddress,
+        amount: u256,
+        deadline_timestamp: u64,
+        milestone_uri: ByteArray,
+    ) -> u256;
+    fn execute_withdrawal(ref self: TContractState, request_id: u256);
+    fn set_governance_parameters(
+        ref self: TContractState, quorum_percentage: u256, approval_threshold: u256,
+    );
+
+    // Governance view functions
+    fn get_withdrawal_request(self: @TContractState, request_id: u256) -> WithdrawalRequest;
+    fn get_governance_parameters(self: @TContractState) -> (u256, u256);
+}
+
+#[derive(Drop, Serde, starknet::Store)]
+pub struct WithdrawalRequest {
+    pub requester: ContractAddress,
+    pub token_address: ContractAddress,
+    pub amount: u256,
+    pub deadline_timestamp: u64,
+    pub milestone_uri: ByteArray,
+    pub expectation_hash: felt252,
+    pub created_timestamp: u64,
+    pub is_executed: bool,
+    pub is_cancelled: bool,
+}
+
+#[derive(Drop, Serde)]
+pub struct VoteStatus {
+    pub total_votes_for: u256,
+    pub total_votes_against: u256,
+    pub total_voting_power: u256,
+    pub quorum_reached: bool,
+    pub approved: bool,
+    pub voting_ended: bool,
 }
 
 #[starknet::contract]
 pub mod BigIncGenesis {
     use core::traits::Into;
+    use core::pedersen;
     use openzeppelin::access::ownable::OwnableComponent;
     use openzeppelin::security::pausable::PausableComponent;
     use openzeppelin::security::reentrancyguard::ReentrancyGuardComponent;
@@ -59,7 +100,7 @@ pub mod BigIncGenesis {
         StoragePointerWriteAccess,
     };
     use starknet::{ContractAddress, get_block_timestamp, get_caller_address, get_contract_address};
-    use super::IBigIncGenesis;
+    use super::{IBigIncGenesis, WithdrawalRequest, VoteStatus};
 
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
     component!(path: PausableComponent, storage: pausable, event: PausableEvent);
@@ -105,6 +146,14 @@ pub mod BigIncGenesis {
         shareholder_count: u32,
         // Partner token rates (tokens required for 1 full share)
         partner_token_rates: Map<ContractAddress, u256>,
+        // Governance
+        withdrawal_requests: Map<u256, WithdrawalRequest>,
+        withdrawal_request_count: u256,
+        withdrawal_progress_amount: Map<ContractAddress, u256>,
+        votes: Map<(u256, ContractAddress), bool>, // (request_id, voter) -> has_voted
+        vote_choices: Map<(u256, ContractAddress), bool>, // (request_id, voter) -> vote_choice
+        quorum_percentage: u256, // percentage of total shares needed for quorum (e.g., 50 = 50%)
+        approval_threshold: u256, // percentage of votes needed to approve (e.g., 60 = 60%)
     }
 
     #[event]
@@ -122,9 +171,12 @@ pub mod BigIncGenesis {
         Donate: Donate,
         SharesSeized: SharesSeized,
         AllSharesSold: AllSharesSold,
-        Withdrawn: Withdrawn,
+        // Withdrawn: Withdrawn,
         PartnerShareCapSet: PartnerShareCapSet,
         PartnerShareMinted: PartnerShareMinted,
+        WithdrawalRequestSubmitted: WithdrawalRequestSubmitted,
+        WithdrawalExecuted: WithdrawalExecuted,
+        GovernanceParametersSet: GovernanceParametersSet,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -166,14 +218,14 @@ pub mod BigIncGenesis {
     struct AllSharesSold {}
 
 
-    #[derive(Drop, starknet::Event)]
-    struct Withdrawn {
-        #[key]
-        token_address: ContractAddress,
-        amount: u256,
-        owner: ContractAddress,
-        timestamp: u256,
-    }
+    // #[derive(Drop, starknet::Event)]
+    // struct Withdrawn {
+    //     #[key]
+    //     token_address: ContractAddress,
+    //     amount: u256,
+    //     owner: ContractAddress,
+    //     timestamp: u256,
+    // }
 
     #[derive(Drop, starknet::Event)]
     struct PartnerShareCapSet {
@@ -191,6 +243,33 @@ pub mod BigIncGenesis {
         amount_paid: u256,
         shares_received: u256,
         rate: u256,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct WithdrawalRequestSubmitted {
+        #[key]
+        request_id: u256,
+        #[key]
+        requester: ContractAddress,
+        token_address: ContractAddress,
+        amount: u256,
+        deadline_timestamp: u64,
+        expectation_hash: felt252,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct WithdrawalExecuted {
+        #[key]
+        request_id: u256,
+        token_address: ContractAddress,
+        amount: u256,
+        requester: ContractAddress,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct GovernanceParametersSet {
+        quorum_percentage: u256,
+        approval_threshold: u256,
     }
 
     #[constructor]
@@ -221,6 +300,11 @@ pub mod BigIncGenesis {
         self.is_shareholder_map.write(owner, true);
         self.shareholder_addresses.write(0, owner);
         self.shareholder_count.write(1);
+
+        // Initialize governance parameters
+        self.withdrawal_request_count.write(0);
+        self.quorum_percentage.write(50); // 50% quorum by default
+        self.approval_threshold.write(60); // 60% approval threshold by default
     }
 
     #[abi(embed_v0)]
@@ -349,24 +433,24 @@ pub mod BigIncGenesis {
             self.emit(Donate { donor: caller, token_address, amount });
         }
 
-        fn withdraw(ref self: ContractState, token_address: ContractAddress, amount: u256) {
-            self.ownable.assert_only_owner();
-            self.reentrancy_guard.start();
+        // fn withdraw(ref self: ContractState, token_address: ContractAddress, amount: u256) {
+        //     self.ownable.assert_only_owner();
+        //     self.reentrancy_guard.start();
 
-            let token = IERC20Dispatcher { contract_address: token_address };
-            let contract_address = get_contract_address();
+        //     let token = IERC20Dispatcher { contract_address: token_address };
+        //     let contract_address = get_contract_address();
 
-            assert(token.balance_of(contract_address) >= amount, 'Insufficient balance');
+        //     assert(token.balance_of(contract_address) >= amount, 'Insufficient balance');
 
-            let owner = self.ownable.owner();
-            token.transfer(owner, amount);
+        //     let owner = self.ownable.owner();
+        //     token.transfer(owner, amount);
 
-            //     Emit Withdrawn event
-            let ts: u256 = get_block_timestamp().into();
-            self.emit(Event::Withdrawn(Withdrawn { token_address, amount, owner, timestamp: ts }));
+        //     //     Emit Withdrawn event
+        //     let ts: u256 = get_block_timestamp().into();
+        //     self.emit(Event::Withdrawn(Withdrawn { token_address, amount, owner, timestamp: ts }));
 
-            self.reentrancy_guard.end();
-        }
+        //     self.reentrancy_guard.end();
+        // }
 
         fn seize_shares(ref self: ContractState, shareholder: ContractAddress) {
             self.ownable.assert_only_owner();
@@ -593,6 +677,125 @@ pub mod BigIncGenesis {
         fn renounce_owner(ref self: ContractState) {
             self.ownable.renounce_ownership();
         }
+
+        // Governance Functions
+        fn submit_withdrawal_request(
+            ref self: ContractState,
+            token_address: ContractAddress,
+            amount: u256,
+            deadline_timestamp: u64,
+            milestone_uri: ByteArray,
+        ) -> u256 {
+            self.ownable.assert_only_owner();
+            self.pausable.assert_not_paused();
+            self._validate_token(token_address);
+
+            assert(amount > 0, 'Amount must be > 0');
+            assert(deadline_timestamp > get_block_timestamp(), 'Deadline must be in future');
+
+            let token = IERC20Dispatcher { contract_address: token_address };
+            let contract_address = get_contract_address();
+
+            // ensure that we can payout all the withdrawal requests in queue
+            let withdrawal_progress_amount = self.withdrawal_progress_amount.read(token_address);
+            assert(token.balance_of(contract_address) >= withdrawal_progress_amount + amount, 'Insufficient contract balance');
+
+            self.withdrawal_progress_amount.write(token_address, withdrawal_progress_amount + amount);
+
+            let request_id = self.withdrawal_request_count.read();
+            let current_timestamp = get_block_timestamp();
+            let requester = get_caller_address();
+
+            // Create expectation hash from the milestone URI length and deadline
+            let uri_len: felt252 = milestone_uri.len().into();
+            let expectation_hash = pedersen::pedersen(uri_len, deadline_timestamp.into());
+
+            let request = WithdrawalRequest {
+                requester,
+                token_address,
+                amount,
+                deadline_timestamp,
+                milestone_uri,
+                expectation_hash,
+                created_timestamp: current_timestamp,
+                is_executed: false,
+                is_cancelled: false,
+            };
+
+            self.withdrawal_requests.write(request_id, request);
+            self.withdrawal_request_count.write(request_id + 1);
+
+            self
+                .emit(
+                    WithdrawalRequestSubmitted {
+                        request_id,
+                        requester,
+                        token_address,
+                        amount,
+                        deadline_timestamp,
+                        expectation_hash,
+                    },
+                );
+
+            request_id
+        }
+
+        fn execute_withdrawal(ref self: ContractState, request_id: u256) {
+            self.pausable.assert_not_paused();
+            self.reentrancy_guard.start();
+
+            let mut request = self.withdrawal_requests.read(request_id);
+            assert(!request.is_executed, 'Already executed');
+            assert(!request.is_cancelled, 'Request cancelled');
+            assert(
+                get_block_timestamp() >= request.deadline_timestamp, 'Deadline not reached',
+            );
+
+            let vote_status = self._calculate_vote_status(request_id);
+            assert(vote_status.quorum_reached, 'Quorum not reached');
+            assert(vote_status.approved, 'Proposal not approved');
+
+            let token_address = request.token_address;
+            let amount = request.amount;
+            let requester = request.requester;
+
+            request.is_executed = true;
+            self.withdrawal_requests.write(request_id, request);
+
+            let token = IERC20Dispatcher { contract_address: token_address };
+            token.transfer(requester, amount);
+
+            self
+                .emit(
+                    WithdrawalExecuted { request_id, token_address, amount, requester },
+                );
+
+            self.reentrancy_guard.end();
+        }
+
+        fn set_governance_parameters(
+            ref self: ContractState, quorum_percentage: u256, approval_threshold: u256,
+        ) {
+            self.ownable.assert_only_owner();
+            assert(quorum_percentage <= 100, 'Quorum cannot exceed 100%');
+            assert(approval_threshold <= 100, 'Threshold cannot exceed 100%');
+            assert(quorum_percentage > 0, 'Quorum must be > 0');
+            assert(approval_threshold > 0, 'Threshold must be > 0');
+
+            self.quorum_percentage.write(quorum_percentage);
+            self.approval_threshold.write(approval_threshold);
+
+            self.emit(GovernanceParametersSet { quorum_percentage, approval_threshold });
+        }
+
+        // Governance View Functions
+        fn get_withdrawal_request(self: @ContractState, request_id: u256) -> WithdrawalRequest {
+            self.withdrawal_requests.read(request_id)
+        }
+
+        fn get_governance_parameters(self: @ContractState) -> (u256, u256) {
+            (self.quorum_percentage.read(), self.approval_threshold.read())
+        }
     }
 
     #[generate_trait]
@@ -622,6 +825,56 @@ pub mod BigIncGenesis {
         fn _validate_partner_token(self: @ContractState, token_address: ContractAddress) {
             let rate = self.partner_token_rates.read(token_address);
             assert(rate > 0, 'Partner token not configured');
+        }
+
+        fn _calculate_vote_status(self: @ContractState, request_id: u256) -> VoteStatus {
+            let mut total_votes_for = 0_u256;
+            let mut total_votes_against = 0_u256;
+            let mut total_voting_power = 0_u256;
+
+            let shareholder_count = self.shareholder_count.read();
+            let mut i = 0;
+
+            // Calculate total voting power and votes
+            while i < shareholder_count {
+                let shareholder = self.shareholder_addresses.read(i);
+                if self.is_shareholder_map.read(shareholder) {
+                    let voting_power = self.shareholders.read(shareholder);
+                    total_voting_power += voting_power;
+
+                    if self.votes.read((request_id, shareholder)) {
+                        let vote_choice = self.vote_choices.read((request_id, shareholder));
+                        if vote_choice {
+                            total_votes_for += voting_power;
+                        } else {
+                            total_votes_against += voting_power;
+                        }
+                    }
+                }
+                i += 1;
+            };
+
+            let total_votes_cast = total_votes_for + total_votes_against;
+            let quorum_threshold = (total_voting_power * self.quorum_percentage.read()) / 100;
+            let quorum_reached = total_votes_cast >= quorum_threshold;
+
+            let approved = if total_votes_cast > 0 {
+                (total_votes_for * 100) / total_votes_cast >= self.approval_threshold.read()
+            } else {
+                false
+            };
+
+            let request = self.withdrawal_requests.read(request_id);
+            let voting_ended = get_block_timestamp() > request.deadline_timestamp;
+
+            VoteStatus {
+                total_votes_for,
+                total_votes_against,
+                total_voting_power,
+                quorum_reached,
+                approved,
+                voting_ended,
+            }
         }
     }
 }
