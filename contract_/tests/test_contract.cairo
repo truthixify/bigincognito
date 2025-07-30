@@ -3,55 +3,11 @@ use contract_::BigIncGenesis::{
 };
 use core::num::traits::Zero;
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
-use snforge_std::{CheatSpan, EventSpyAssertionsTrait, cheat_caller_address, spy_events};
+use snforge_std::{
+    CheatSpan, EventSpyAssertionsTrait, cheat_block_timestamp, cheat_caller_address, spy_events,
+};
 use starknet::ContractAddress;
 use super::setup::{deploy_mock_erc20, owner, setup};
-
-
-// fn mint_share(ref self: TContractState, token_address: ContractAddress);
-//     fn transfer_share(ref self: TContractState, to: ContractAddress, share_amount: u256);
-//     fn donate(ref self: TContractState, token_address: ContractAddress, amount: u256);
-
-//     // View functions
-//     fn get_available_shares(self: @TContractState) -> u256;
-//     fn get_shares(self: @TContractState, addr: ContractAddress) -> u256;
-//     fn get_shareholders(self: @TContractState) -> Array<ContractAddress>;
-//     fn is_shareholder(self: @TContractState, addr: ContractAddress) -> bool;
-//     fn get_usdt_address(self: @TContractState) -> ContractAddress;
-//     fn get_usdc_address(self: @TContractState) -> ContractAddress;
-//     fn get_total_share_valuation(self: @TContractState) -> u256;
-//     fn get_presale_share_valuation(self: @TContractState) -> u256;
-//     fn get_presale_shares(self: @TContractState) -> u256;
-//     fn get_shares_sold(self: @TContractState) -> u256;
-//     fn is_presale_active(self: @TContractState) -> bool;
-
-//     // Owner functions
-//     fn withdraw(ref self: TContractState, token_address: ContractAddress, amount: u256);
-//     fn seize_shares(ref self: TContractState, shareholder: ContractAddress);
-//     fn set_partner_share_cap(ref self: TContractState, token_address: ContractAddress, cap:
-//     u256);
-//     fn remove_partner_share_cap(ref self: TContractState, token_address: ContractAddress);
-//     fn pause(ref self: TContractState);
-//     fn unpause(ref self: TContractState);
-
-//     // Partner view functions
-//     fn get_partner_share_cap(self: @TContractState, token_address: ContractAddress) -> u256;
-//     fn get_shares_minted_by_partner(self: @TContractState, token_address: ContractAddress) ->
-//     u256;
-
-//     // Ownable functions
-//     fn get_owner(self: @TContractState) -> ContractAddress;
-//     fn transfer_owner(ref self: TContractState, new_owner: ContractAddress);
-//     fn renounce_owner(ref self: TContractState);
-
-//     // Partner token functions
-//     fn mint_partner_share(
-//         ref self: TContractState, token_address: ContractAddress, token_amount: u256,
-//     );
-//     fn set_partner_token_rate(
-//         ref self: TContractState, token_address: ContractAddress, tokens_per_share: u256,
-//     );
-//     fn get_partner_token_rate(self: @TContractState, token_address: ContractAddress) -> u256;
 
 fn alice() -> ContractAddress {
     'alice'.try_into().unwrap()
@@ -75,6 +31,13 @@ fn feign_mint_share(genesis: IBigIncGenesisDispatcher, token: IERC20Dispatcher, 
     token.approve(genesis.contract_address, amount);
     cheat_caller_address(genesis.contract_address, charlie(), CheatSpan::TargetCalls(1));
     genesis.mint_share(token.contract_address);
+}
+
+fn default_mint_context() -> (IBigIncGenesisDispatcher, IERC20Dispatcher) {
+    let (genesis, usdt, _) = setup();
+    let amount = 10000;
+    feign_mint_share(genesis, usdt, amount);
+    (genesis, usdt)
 }
 
 #[test]
@@ -106,13 +69,6 @@ fn test_genesis_mint_share_should_panic_on_invalid_token() {
     let contract_address = deploy_mock_erc20("TOKEN", "TKN", 1000000, owner());
     let token = IERC20Dispatcher { contract_address };
     feign_mint_share(genesis, token, amount);
-}
-
-fn default_mint_context() -> (IBigIncGenesisDispatcher, IERC20Dispatcher) {
-    let (genesis, usdt, _) = setup();
-    let amount = 10000;
-    feign_mint_share(genesis, usdt, amount);
-    (genesis, usdt)
 }
 
 #[test]
@@ -186,8 +142,148 @@ fn test_genesis_donate_success() {
 
 #[test]
 #[should_panic(expected: 'Exceeds available shares')]
-fn test_genesis_mint_share_should_panic_on_exceeded_available_shares() {}
+fn test_genesis_mint_share_should_panic_on_exceeded_available_shares() {
+    let (genesis, usdt, _) = setup();
+    let amount = genesis.get_available_shares();
+    feign_mint_share(genesis, usdt, amount + 2);
+}
 
+
+// fn mint_share(ref self: TContractState, token_address: ContractAddress);
+//     fn transfer_share(ref self: TContractState, to: ContractAddress, share_amount: u256);
+//     fn donate(ref self: TContractState, token_address: ContractAddress, amount: u256);
+
+//     // View functions
+//     fn get_available_shares(self: @TContractState) -> u256;
+//     fn get_shares(self: @TContractState, addr: ContractAddress) -> u256;
+//     fn get_shareholders(self: @TContractState) -> Array<ContractAddress>;
+//     fn is_shareholder(self: @TContractState, addr: ContractAddress) -> bool;
+//     fn get_usdt_address(self: @TContractState) -> ContractAddress;
+//     fn get_usdc_address(self: @TContractState) -> ContractAddress;
+//     fn get_total_share_valuation(self: @TContractState) -> u256;
+//     fn get_presale_share_valuation(self: @TContractState) -> u256;
+//     fn get_presale_shares(self: @TContractState) -> u256;
+//     fn get_shares_sold(self: @TContractState) -> u256;
+//     fn is_presale_active(self: @TContractState) -> bool;
+
+//     // Owner functions
+//     fn withdraw(ref self: TContractState, token_address: ContractAddress, amount: u256);
+//     fn seize_shares(ref self: TContractState, shareholder: ContractAddress);
+//     fn set_partner_share_cap(ref self: TContractState, token_address: ContractAddress, cap:
+//     u256);
+//     fn remove_partner_share_cap(ref self: TContractState, token_address: ContractAddress);
+//     fn pause(ref self: TContractState);
+//     fn unpause(ref self: TContractState);
+
+//     // Partner view functions
+//     fn get_partner_share_cap(self: @TContractState, token_address: ContractAddress) -> u256;
+//     fn get_shares_minted_by_partner(self: @TContractState, token_address: ContractAddress) ->
+//     u256;
+
+//     // Ownable functions
+//     fn get_owner(self: @TContractState) -> ContractAddress;
+//     fn transfer_owner(ref self: TContractState, new_owner: ContractAddress);
+//     fn renounce_owner(ref self: TContractState);
+
+//     // Partner token functions
+//     fn mint_partner_share(
+//         ref self: TContractState, token_address: ContractAddress, token_amount: u256,
+//     );
+//     fn set_partner_token_rate(
+//         ref self: TContractState, token_address: ContractAddress, tokens_per_share: u256,
+//     );
+//     fn get_partner_token_rate(self: @TContractState, token_address: ContractAddress) -> u256;
+
+#[test]
+#[should_panic(expected: 'Exceeds partner share cap')]
+fn test_genesis_mint_share_should_panic_on_partner_share_cap_exceeded() {
+    let (genesis, usdt, _) = setup();
+    let amount = 0;
+}
+
+// #[derive(Drop, starknet::Event)]
+//     struct AllSharesSold {}
+
+//     #[derive(Drop, starknet::Event)]
+//     struct PartnerShareCapSet {
+//         #[key]
+//         token_address: ContractAddress,
+//         cap: u256,
+//     }
+
+//     #[derive(Drop, starknet::Event)]
+//     struct PartnerShareMinted {
+//         #[key]
+//         token_address: ContractAddress,
+//         #[key]
+//         buyer: ContractAddress,
+//         amount_paid: u256,
+//         shares_received: u256,
+//         rate: u256,
+//     }
+
+#[test]
+#[should_panic(expected: 'Insufficient balance')]
+fn test_genesis_withdraw_success_and_should_panic_on_insufficient_funds() {
+    let (genesis, usdt) = default_mint_context();
+    let balance = usdt.balance_of(genesis.contract_address);
+    let owner_balance = usdt.balance_of(owner());
+    cheat_caller_address(genesis.contract_address, owner(), CheatSpan::TargetCalls(1));
+    let timestamp = 10;
+    cheat_block_timestamp(genesis.contract_address, timestamp, CheatSpan::Indefinite)
+    let mut spy = spy_events();
+    genesis.withdraw(usdt.contract_address, balance);
+
+    let genesis_balance = usdt.balance_of(genesis.contract_address);
+    assert(genesis_balance == 0, 'WITHDRAWAL FAILED 1.');
+    let new_balance = usdt.balance_of(owner());
+    assert(new_balance == (owner_balance + balance), 'OWNER BALANCE MISMATCH');
+
+    let event = BigIncGenesis::Event::Withdrawn(
+        BigIncGenesis::Withdrawn {
+            token_address: usdt.contract_address,
+            amount: balance,
+            owner: owner(),
+            timestamp: timestamp.into(),
+        },
+    );
+    spy.assert_emitted(@array![(genesis.contract_address, event)]);
+
+    cheat_caller_address(genesis.contract_address, owner(), CheatSpan::TargetCalls(1));
+    genesis.withdraw(usdt.contract_address, 1);
+}
+
+#[test]
+#[should_panic]
+fn test_genesis_withdraw_should_panic_on_non_owner() {
+    let (genesis, usdt) = default_mint_context();
+    cheat_caller_address(genesis.contract_address, charlie(), CheatSpan::TargetCalls(1));
+    genesis.withdraw(usdt.contract_address, 100);
+}
+
+#[test]
+#[should_panic(expected: 'Insufficient shares')]
+fn test_genesis_seize_shares_success_and_should_panic_on_transfer() {
+    let (genesis, usdt) = default_mint_context();
+    let mut spy = spy_events();
+    cheat_caller_address(genesis.contract_address, owner(), CheatSpan::TargetCalls(1));
+
+    let share_amount = genesis.get_available_shares();
+    let shares = genesis.get_shares(charlie());
+    assert(share_amount == shares, 'CHARLIE SHARES MISMATCH');
+    assert(share_amount > 0, 'SHARE AMOUNT SHOULD NOT BE ZERO');
+
+    let event = BigIncGenesis::Event::SharesSeized(
+        BigIncGenesis::SharesSeized { shareholder: charlie(), share_amount },
+    );
+    spy.assert_emitted(@array![(genesis.contract_address, event)]);
+
+    let shares = genesis.get_shares(charlie());
+    assert(shares == 0, 'CHARLIE SHARES SHOULD BE ZERO');
+
+    cheat_caller_address(genesis.contract_address, charlie(), CheatSpan::Indefinite);
+    genesis.transfer_share(alice(), 1);
+}
 // let partner_cap = self.partner_share_cap.read(token_address);
 //             if partner_cap > 0 {
 //                 let current_partner_shares = self.shares_minted_by_partner.read(token_address);
@@ -200,13 +296,4 @@ fn test_genesis_mint_share_should_panic_on_exceeded_available_shares() {}
 //                     .write(token_address, current_partner_shares + shares_received);
 //             }
 
-#[test]
-#[should_panic(expected: 'Exceeds partner share cap')]
-fn test_genesis_mint_share_should_panic_on_partner_share_cap_exceeded() {
-    let (genesis, usdt, _) = setup();
-    let amount = 0;
-}
-
-#[test]
-fn test_genesis_transfer_share_success() {}
 
