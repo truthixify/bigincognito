@@ -89,8 +89,8 @@ pub struct VoteStatus {
 
 #[starknet::contract]
 pub mod BigIncGenesis {
-    use core::traits::Into;
     use core::pedersen;
+    use core::traits::Into;
     use openzeppelin::access::ownable::OwnableComponent;
     use openzeppelin::security::pausable::PausableComponent;
     use openzeppelin::security::reentrancyguard::ReentrancyGuardComponent;
@@ -100,7 +100,7 @@ pub mod BigIncGenesis {
         StoragePointerWriteAccess,
     };
     use starknet::{ContractAddress, get_block_timestamp, get_caller_address, get_contract_address};
-    use super::{IBigIncGenesis, WithdrawalRequest, VoteStatus};
+    use super::{IBigIncGenesis, VoteStatus, WithdrawalRequest};
 
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
     component!(path: PausableComponent, storage: pausable, event: PausableEvent);
@@ -153,7 +153,7 @@ pub mod BigIncGenesis {
         votes: Map<(u256, ContractAddress), bool>, // (request_id, voter) -> has_voted
         vote_choices: Map<(u256, ContractAddress), bool>, // (request_id, voter) -> vote_choice
         quorum_percentage: u256, // percentage of total shares needed for quorum (e.g., 50 = 50%)
-        approval_threshold: u256, // percentage of votes needed to approve (e.g., 60 = 60%)
+        approval_threshold: u256 // percentage of votes needed to approve (e.g., 60 = 60%)
     }
 
     #[event]
@@ -447,7 +447,8 @@ pub mod BigIncGenesis {
 
         //     //     Emit Withdrawn event
         //     let ts: u256 = get_block_timestamp().into();
-        //     self.emit(Event::Withdrawn(Withdrawn { token_address, amount, owner, timestamp: ts }));
+        //     self.emit(Event::Withdrawn(Withdrawn { token_address, amount, owner, timestamp: ts
+        //     }));
 
         //     self.reentrancy_guard.end();
         // }
@@ -698,9 +699,14 @@ pub mod BigIncGenesis {
 
             // ensure that we can payout all the withdrawal requests in queue
             let withdrawal_progress_amount = self.withdrawal_progress_amount.read(token_address);
-            assert(token.balance_of(contract_address) >= withdrawal_progress_amount + amount, 'Insufficient contract balance');
+            assert(
+                token.balance_of(contract_address) >= withdrawal_progress_amount + amount,
+                'Insufficient contract balance',
+            );
 
-            self.withdrawal_progress_amount.write(token_address, withdrawal_progress_amount + amount);
+            self
+                .withdrawal_progress_amount
+                .write(token_address, withdrawal_progress_amount + amount);
 
             let request_id = self.withdrawal_request_count.read();
             let current_timestamp = get_block_timestamp();
@@ -747,9 +753,7 @@ pub mod BigIncGenesis {
             let mut request = self.withdrawal_requests.read(request_id);
             assert(!request.is_executed, 'Already executed');
             assert(!request.is_cancelled, 'Request cancelled');
-            assert(
-                get_block_timestamp() >= request.deadline_timestamp, 'Deadline not reached',
-            );
+            assert(get_block_timestamp() >= request.deadline_timestamp, 'Deadline not reached');
 
             let vote_status = self._calculate_vote_status(request_id);
             assert(vote_status.quorum_reached, 'Quorum not reached');
@@ -765,10 +769,7 @@ pub mod BigIncGenesis {
             let token = IERC20Dispatcher { contract_address: token_address };
             token.transfer(requester, amount);
 
-            self
-                .emit(
-                    WithdrawalExecuted { request_id, token_address, amount, requester },
-                );
+            self.emit(WithdrawalExecuted { request_id, token_address, amount, requester });
 
             self.reentrancy_guard.end();
         }
@@ -852,7 +853,7 @@ pub mod BigIncGenesis {
                     }
                 }
                 i += 1;
-            };
+            }
 
             let total_votes_cast = total_votes_for + total_votes_against;
             let quorum_threshold = (total_voting_power * self.quorum_percentage.read()) / 100;

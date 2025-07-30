@@ -41,4 +41,4 @@ pub mod MockERC20 {
     fn mint(ref self: ContractState, to: ContractAddress, amount: u256) {
         self.erc20.mint(to, amount);
     }
-} 
+}
