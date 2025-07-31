@@ -55,6 +55,7 @@ pub trait IBigIncGenesis<TContractState> {
         milestone_uri: ByteArray,
     ) -> u256;
     fn execute_withdrawal(ref self: TContractState, request_id: u256);
+    fn cancel_withdrawal_request(ref self: TContractState, request_id: u256);
     fn set_governance_parameters(
         ref self: TContractState, quorum_percentage: u256, approval_threshold: u256,
     );
@@ -176,6 +177,7 @@ pub mod BigIncGenesis {
         PartnerShareMinted: PartnerShareMinted,
         WithdrawalRequestSubmitted: WithdrawalRequestSubmitted,
         WithdrawalExecuted: WithdrawalExecuted,
+        WithdrawalCancelled: WithdrawalCancelled,
         GovernanceParametersSet: GovernanceParametersSet,
     }
 
@@ -264,6 +266,14 @@ pub mod BigIncGenesis {
         token_address: ContractAddress,
         amount: u256,
         requester: ContractAddress,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct WithdrawalCancelled {
+        #[key]
+        request_id: u256,
+        token_address: ContractAddress,
+        amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -712,9 +722,9 @@ pub mod BigIncGenesis {
             let current_timestamp = get_block_timestamp();
             let requester = get_caller_address();
 
-            // Create expectation hash from the milestone URI length and deadline
-            let uri_len: felt252 = milestone_uri.len().into();
-            let expectation_hash = pedersen::pedersen(uri_len, deadline_timestamp.into());
+            // Create expectation hash from the milestone URI content and deadline
+            let uri_hash = self._hash_byte_array(@milestone_uri);
+            let expectation_hash = pedersen::pedersen(uri_hash, deadline_timestamp.into());
 
             let request = WithdrawalRequest {
                 requester,
@@ -766,10 +776,39 @@ pub mod BigIncGenesis {
             request.is_executed = true;
             self.withdrawal_requests.write(request_id, request);
 
+            // Reduce withdrawal_progress_amount
+            let current_progress = self.withdrawal_progress_amount.read(token_address);
+            self.withdrawal_progress_amount.write(token_address, current_progress - amount);
+
             let token = IERC20Dispatcher { contract_address: token_address };
             token.transfer(requester, amount);
 
             self.emit(WithdrawalExecuted { request_id, token_address, amount, requester });
+
+            self.reentrancy_guard.end();
+        }
+
+        fn cancel_withdrawal_request(ref self: ContractState, request_id: u256) {
+            self.ownable.assert_only_owner();
+            self.pausable.assert_not_paused();
+            self.reentrancy_guard.start();
+
+            let mut request = self.withdrawal_requests.read(request_id);
+            assert(!request.is_executed, 'Already executed');
+            assert(!request.is_cancelled, 'Already cancelled');
+
+            let token_address = request.token_address;
+            let amount = request.amount;
+
+            // Update is_cancelled = true
+            request.is_cancelled = true;
+            self.withdrawal_requests.write(request_id, request);
+
+            // Reduce withdrawal_progress_amount
+            let current_progress = self.withdrawal_progress_amount.read(token_address);
+            self.withdrawal_progress_amount.write(token_address, current_progress - amount);
+
+            self.emit(WithdrawalCancelled { request_id, token_address, amount });
 
             self.reentrancy_guard.end();
         }
@@ -876,6 +915,22 @@ pub mod BigIncGenesis {
                 approved,
                 voting_ended,
             }
+        }
+
+        fn _hash_byte_array(self: @ContractState, byte_array: @ByteArray) -> felt252 {
+            let mut hash = 0;
+            let mut i = 0;
+            let len = byte_array.len();
+            
+            // Hash the content by iterating through bytes
+            while i < len {
+                let byte_value: felt252 = byte_array.at(i).unwrap().into();
+                hash = pedersen::pedersen(hash, byte_value);
+                i += 1;
+            };
+            
+            // Include length in final hash to prevent collision
+            pedersen::pedersen(hash, len.into())
         }
     }
 }
