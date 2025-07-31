@@ -921,14 +921,14 @@ pub mod BigIncGenesis {
             let mut hash = 0;
             let mut i = 0;
             let len = byte_array.len();
-            
+
             // Hash the content by iterating through bytes
             while i < len {
                 let byte_value: felt252 = byte_array.at(i).unwrap().into();
                 hash = pedersen::pedersen(hash, byte_value);
                 i += 1;
-            };
-            
+            }
+
             // Include length in final hash to prevent collision
             pedersen::pedersen(hash, len.into())
         }
