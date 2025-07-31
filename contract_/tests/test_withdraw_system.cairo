@@ -178,3 +178,87 @@ fn test_submit_withdrawal_request_zero_amount() {
     stop_cheat_block_timestamp(contract.contract_address);
     stop_cheat_caller_address(contract.contract_address);
 }
+#[test]
+fn test_cancel_withdrawal_request() {
+    let (contract, usdt_address, _) = deploy_contract_with_tokens();
+
+    start_cheat_caller_address(contract.contract_address, contract_address_const::<OWNER>());
+    start_cheat_block_timestamp(contract.contract_address, 1000);
+
+    let amount = 100_000000; // 100 USDT
+    let deadline = 2000;
+    let milestone_uri: ByteArray = "https://example.com/milestone1";
+
+    // Submit withdrawal request
+    let request_id = contract.submit_withdrawal_request(
+        usdt_address, amount, deadline, milestone_uri
+    );
+
+    // Verify request is created properly
+    let request = contract.get_withdrawal_request(request_id);
+    assert(!request.is_cancelled, 'Not cancelled initially');
+    assert(!request.is_executed, 'Not executed initially');
+
+    // Cancel the withdrawal request
+    contract.cancel_withdrawal_request(request_id);
+
+    // Verify request is cancelled
+    let cancelled_request = contract.get_withdrawal_request(request_id);
+    assert(cancelled_request.is_cancelled, 'Should be cancelled');
+    assert(!cancelled_request.is_executed, 'Still not executed');
+
+    stop_cheat_block_timestamp(contract.contract_address);
+    stop_cheat_caller_address(contract.contract_address);
+}
+
+#[test]
+#[should_panic(expected: ('Already cancelled',))]
+fn test_cancel_already_cancelled_request() {
+    let (contract, usdt_address, _) = deploy_contract_with_tokens();
+
+    start_cheat_caller_address(contract.contract_address, contract_address_const::<OWNER>());
+    start_cheat_block_timestamp(contract.contract_address, 1000);
+
+    let amount = 100_000000;
+    let deadline = 2000;
+    let milestone_uri: ByteArray = "https://example.com/milestone1";
+
+    // Submit and cancel withdrawal request
+    let request_id = contract.submit_withdrawal_request(
+        usdt_address, amount, deadline, milestone_uri
+    );
+    contract.cancel_withdrawal_request(request_id);
+
+    // Try to cancel again - should panic
+    contract.cancel_withdrawal_request(request_id);
+}
+
+#[test]
+fn test_expectation_hash() {
+    let (contract, usdt_address, _) = deploy_contract_with_tokens();
+
+    start_cheat_caller_address(contract.contract_address, contract_address_const::<OWNER>());
+    start_cheat_block_timestamp(contract.contract_address, 1000);
+
+    let amount = 100_000000;
+    let deadline = 2000;
+    let milestone_uri1: ByteArray = "https://example.com/milestone1";
+    let milestone_uri2: ByteArray = "https://example.com/milestone2";
+
+    // Submit two requests with same deadline but different URI content
+    let request_id1 = contract.submit_withdrawal_request(
+        usdt_address, amount, deadline, milestone_uri1
+    );
+    let request_id2 = contract.submit_withdrawal_request(
+        usdt_address, amount, deadline, milestone_uri2
+    );
+
+    // Get the requests and verify they have different expectation hashes
+    let request1 = contract.get_withdrawal_request(request_id1);
+    let request2 = contract.get_withdrawal_request(request_id2);
+    
+    assert(request1.expectation_hash != request2.expectation_hash, 'Hashes should differ');
+
+    stop_cheat_block_timestamp(contract.contract_address);
+    stop_cheat_caller_address(contract.contract_address);
+}
