@@ -23,10 +23,10 @@ pub fn deploy_mock_erc20(
 ) -> ContractAddress {
     let contract = declare("MockERC20").unwrap().contract_class();
     let mut constructor_args = array![];
+    constructor_args.append_serde(recipient);
     constructor_args.append_serde(name);
     constructor_args.append_serde(symbol);
     constructor_args.append_serde(initial_supply);
-    constructor_args.append_serde(recipient);
 
     let (contract_address, _) = contract.deploy(@constructor_args).unwrap();
     contract_address

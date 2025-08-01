@@ -136,7 +136,7 @@ pub mod BigIncGenesis {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct PresaleEnded {}
+    pub struct PresaleEnded {}
 
     #[derive(Drop, starknet::Event)]
     pub struct TransferShare {
