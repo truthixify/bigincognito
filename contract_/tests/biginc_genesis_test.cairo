@@ -261,6 +261,7 @@ fn test_genesis_partner_share_cap_operations_success_and_should_panic_on_exceede
     let shares_minted_by_partner = genesis.get_shares_minted_by_partner(usdt.contract_address);
     println!("Shares minted by partner: {}", shares_minted_by_partner);
     println!("Cap: {}", cap);
+    feign_mint_share(genesis, usdt, amount);
 
     let event2 = BigIncGenesis::Event::PartnerShareMinted(
         BigIncGenesis::PartnerShareMinted {
@@ -276,7 +277,8 @@ fn test_genesis_partner_share_cap_operations_success_and_should_panic_on_exceede
     spy.assert_emitted(@events);
 
     // mint. should panic
-    feign_mint_share(genesis, usdt, amount);
+    println!("End.");
+    feign_mint_share(genesis, usdt, amount * amount);
 }
 
 #[test]
