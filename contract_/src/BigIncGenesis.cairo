@@ -109,7 +109,7 @@ pub mod BigIncGenesis {
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {
+    pub enum Event {
         #[flat]
         OwnableEvent: OwnableComponent::Event,
         #[flat]
@@ -128,69 +128,69 @@ pub mod BigIncGenesis {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct ShareMinted {
+    pub struct ShareMinted {
         #[key]
-        buyer: ContractAddress,
-        shares_bought: u256,
-        amount: u256,
+        pub buyer: ContractAddress,
+        pub shares_bought: u256,
+        pub amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct PresaleEnded {}
+    pub struct PresaleEnded {}
 
     #[derive(Drop, starknet::Event)]
-    struct TransferShare {
+    pub struct TransferShare {
         #[key]
-        from: ContractAddress,
+        pub from: ContractAddress,
         #[key]
-        to: ContractAddress,
-        share_amount: u256,
+        pub to: ContractAddress,
+        pub share_amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Donate {
+    pub struct Donate {
         #[key]
-        donor: ContractAddress,
-        token_address: ContractAddress,
-        amount: u256,
+        pub donor: ContractAddress,
+        pub token_address: ContractAddress,
+        pub amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct SharesSeized {
+    pub struct SharesSeized {
         #[key]
-        shareholder: ContractAddress,
-        share_amount: u256,
+        pub shareholder: ContractAddress,
+        pub share_amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct AllSharesSold {}
+    pub struct AllSharesSold {}
 
 
     #[derive(Drop, starknet::Event)]
-    struct Withdrawn {
+    pub struct Withdrawn {
         #[key]
-        token_address: ContractAddress,
-        amount: u256,
-        owner: ContractAddress,
-        timestamp: u256,
+        pub token_address: ContractAddress,
+        pub amount: u256,
+        pub owner: ContractAddress,
+        pub timestamp: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct PartnerShareCapSet {
+    pub struct PartnerShareCapSet {
         #[key]
-        token_address: ContractAddress,
-        cap: u256,
+        pub token_address: ContractAddress,
+        pub cap: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct PartnerShareMinted {
+    pub struct PartnerShareMinted {
         #[key]
-        token_address: ContractAddress,
+        pub token_address: ContractAddress,
         #[key]
-        buyer: ContractAddress,
-        amount_paid: u256,
-        shares_received: u256,
-        rate: u256,
+        pub buyer: ContractAddress,
+        pub amount_paid: u256,
+        pub shares_received: u256,
+        pub rate: u256,
     }
 
     #[constructor]
