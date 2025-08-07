@@ -54,10 +54,11 @@ pub trait IBigIncGenesis<TContractState> {
         deadline_timestamp: u64,
         milestone_uri: ByteArray,
     ) -> u256;
+    fn vote_on_withdrawal_request(ref self: TContractState, request_id: u256, approve: bool);
     fn execute_withdrawal(ref self: TContractState, request_id: u256);
     fn cancel_withdrawal_request(ref self: TContractState, request_id: u256);
     fn set_governance_parameters(
-        ref self: TContractState, quorum_percentage: u256, approval_threshold: u256,
+        ref self: TContractState, quorum_percentage: u256, voting_period_days: u256,
     );
 
     // Governance view functions
@@ -74,6 +75,7 @@ pub struct WithdrawalRequest {
     pub milestone_uri: ByteArray,
     pub expectation_hash: felt252,
     pub created_timestamp: u64,
+    pub voting_deadline: u64,
     pub is_executed: bool,
     pub is_cancelled: bool,
 }
@@ -102,6 +104,8 @@ pub mod BigIncGenesis {
     };
     use starknet::{ContractAddress, get_block_timestamp, get_caller_address, get_contract_address};
     use super::{IBigIncGenesis, VoteStatus, WithdrawalRequest};
+
+    const SECONDS_PER_DAY: u256 = 86400; // 24 * 60 * 60
 
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
     component!(path: PausableComponent, storage: pausable, event: PausableEvent);
@@ -154,7 +158,7 @@ pub mod BigIncGenesis {
         votes: Map<(u256, ContractAddress), bool>, // (request_id, voter) -> has_voted
         vote_choices: Map<(u256, ContractAddress), bool>, // (request_id, voter) -> vote_choice
         quorum_percentage: u256, // percentage of total shares needed for quorum (e.g., 50 = 50%)
-        approval_threshold: u256 // percentage of votes needed to approve (e.g., 60 = 60%)
+        voting_period_days: u256 // number of days for voting period (e.g., 2 = 2 days)
     }
 
     #[event]
@@ -178,6 +182,8 @@ pub mod BigIncGenesis {
         WithdrawalRequestSubmitted: WithdrawalRequestSubmitted,
         WithdrawalExecuted: WithdrawalExecuted,
         WithdrawalCancelled: WithdrawalCancelled,
+        VoteCast: VoteCast,
+        VotingEnded: VotingEnded,
         GovernanceParametersSet: GovernanceParametersSet,
     }
 
@@ -277,9 +283,28 @@ pub mod BigIncGenesis {
     }
 
     #[derive(Drop, starknet::Event)]
+    struct VoteCast {
+        #[key]
+        request_id: u256,
+        #[key]
+        voter: ContractAddress,
+        approve: bool,
+        vote_weight: u256,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct VotingEnded {
+        #[key]
+        request_id: u256,
+        total_votes_for: u256,
+        total_votes_against: u256,
+        approved: bool,
+    }
+
+    #[derive(Drop, starknet::Event)]
     struct GovernanceParametersSet {
         quorum_percentage: u256,
-        approval_threshold: u256,
+        voting_period_days: u256,
     }
 
     #[constructor]
@@ -314,7 +339,7 @@ pub mod BigIncGenesis {
         // Initialize governance parameters
         self.withdrawal_request_count.write(0);
         self.quorum_percentage.write(50); // 50% quorum by default
-        self.approval_threshold.write(60); // 60% approval threshold by default
+        self.voting_period_days.write(2); // 2 days voting period by default
     }
 
     #[abi(embed_v0)]
@@ -722,6 +747,9 @@ pub mod BigIncGenesis {
             let current_timestamp = get_block_timestamp();
             let requester = get_caller_address();
 
+            let voting_period_seconds: u64 = (self.voting_period_days.read() * SECONDS_PER_DAY).try_into().unwrap();
+            let voting_deadline = current_timestamp + voting_period_seconds;
+
             // Create expectation hash from the milestone URI content and deadline
             let uri_hash = self._hash_byte_array(@milestone_uri);
             let expectation_hash = pedersen::pedersen(uri_hash, deadline_timestamp.into());
@@ -734,6 +762,7 @@ pub mod BigIncGenesis {
                 milestone_uri,
                 expectation_hash,
                 created_timestamp: current_timestamp,
+                voting_deadline,
                 is_executed: false,
                 is_cancelled: false,
             };
@@ -756,6 +785,29 @@ pub mod BigIncGenesis {
             request_id
         }
 
+        fn vote_on_withdrawal_request(ref self: ContractState, request_id: u256, approve: bool) {
+            self.pausable.assert_not_paused();
+            
+            let caller = get_caller_address();
+            assert(self.is_shareholder_map.read(caller), 'Not a shareholder');
+            
+            let request = self.withdrawal_requests.read(request_id);
+            assert(!request.is_executed, 'Already executed');
+            assert(!request.is_cancelled, 'Request cancelled');
+            assert(get_block_timestamp() <= request.voting_deadline, 'Voting period ended');
+            
+            // Check if already voted
+            assert(!self.votes.read((request_id, caller)), 'Already voted');
+            
+            // Record the vote
+            self.votes.write((request_id, caller), true);
+            self.vote_choices.write((request_id, caller), approve);
+            
+            let vote_weight = self.shareholders.read(caller);
+            
+            self.emit(VoteCast { request_id, voter: caller, approve, vote_weight });
+        }
+
         fn execute_withdrawal(ref self: ContractState, request_id: u256) {
             self.pausable.assert_not_paused();
             self.reentrancy_guard.start();
@@ -763,11 +815,25 @@ pub mod BigIncGenesis {
             let mut request = self.withdrawal_requests.read(request_id);
             assert(!request.is_executed, 'Already executed');
             assert(!request.is_cancelled, 'Request cancelled');
-            assert(get_block_timestamp() >= request.deadline_timestamp, 'Deadline not reached');
+            
+            // Check if voting period has ended
+            let current_timestamp = get_block_timestamp();
+            assert(current_timestamp > request.voting_deadline, 'Voting period not ended');
+            
+            // Also check execution deadline
+            assert(current_timestamp >= request.deadline_timestamp, 'Execution deadline not reached');
 
             let vote_status = self._calculate_vote_status(request_id);
             assert(vote_status.quorum_reached, 'Quorum not reached');
             assert(vote_status.approved, 'Proposal not approved');
+            
+            // Emit voting ended event
+            self.emit(VotingEnded {
+                request_id,
+                total_votes_for: vote_status.total_votes_for,
+                total_votes_against: vote_status.total_votes_against,
+                approved: vote_status.approved,
+            });
 
             let token_address = request.token_address;
             let amount = request.amount;
@@ -814,18 +880,17 @@ pub mod BigIncGenesis {
         }
 
         fn set_governance_parameters(
-            ref self: ContractState, quorum_percentage: u256, approval_threshold: u256,
+            ref self: ContractState, quorum_percentage: u256, voting_period_days: u256,
         ) {
             self.ownable.assert_only_owner();
             assert(quorum_percentage <= 100, 'Quorum cannot exceed 100%');
-            assert(approval_threshold <= 100, 'Threshold cannot exceed 100%');
+            assert(voting_period_days > 0, 'Voting period must be > 0');
             assert(quorum_percentage > 0, 'Quorum must be > 0');
-            assert(approval_threshold > 0, 'Threshold must be > 0');
 
             self.quorum_percentage.write(quorum_percentage);
-            self.approval_threshold.write(approval_threshold);
+            self.voting_period_days.write(voting_period_days);
 
-            self.emit(GovernanceParametersSet { quorum_percentage, approval_threshold });
+            self.emit(GovernanceParametersSet { quorum_percentage, voting_period_days });
         }
 
         // Governance View Functions
@@ -834,7 +899,7 @@ pub mod BigIncGenesis {
         }
 
         fn get_governance_parameters(self: @ContractState) -> (u256, u256) {
-            (self.quorum_percentage.read(), self.approval_threshold.read())
+            (self.quorum_percentage.read(), self.voting_period_days.read())
         }
     }
 
@@ -899,13 +964,13 @@ pub mod BigIncGenesis {
             let quorum_reached = total_votes_cast >= quorum_threshold;
 
             let approved = if total_votes_cast > 0 {
-                (total_votes_for * 100) / total_votes_cast >= self.approval_threshold.read()
+                total_votes_for > total_votes_against
             } else {
                 false
             };
 
             let request = self.withdrawal_requests.read(request_id);
-            let voting_ended = get_block_timestamp() > request.deadline_timestamp;
+            let voting_ended = get_block_timestamp() > request.voting_deadline;
 
             VoteStatus {
                 total_votes_for,
