@@ -17,6 +17,7 @@ const OWNER: felt252 = 0x1;
 const ALICE: felt252 = 0x2;
 const BOB: felt252 = 0x3;
 const CHARLIE: felt252 = 0x4;
+const SECONDS_PER_DAY: u64 = 86400; // 24 * 60 * 60
 
 fn deploy_mock_erc20(initial_supply: u256, recipient: ContractAddress) -> ContractAddress {
     let contract = declare("MockERC20").unwrap().contract_class();
@@ -56,7 +57,53 @@ fn deploy_contract_with_tokens() -> (IBigIncGenesisDispatcher, ContractAddress, 
     stop_cheat_caller_address(usdt_address);
     stop_cheat_caller_address(usdc_address);
 
+    // Setup shareholders for voting tests
+    setup_shareholders(big_inc, usdt_address);
+
     (big_inc, usdt_address, usdc_address)
+}
+
+fn setup_shareholders(contract: IBigIncGenesisDispatcher, token_address: ContractAddress) {
+    let usdt_token = IERC20Dispatcher { contract_address: token_address };
+    
+    // Give Alice 25 shares (high weight voter)
+    start_cheat_caller_address(token_address, contract_address_const::<OWNER>());
+    usdt_token.transfer(contract_address_const::<ALICE>(), 25_000000); // 25 USDT
+    stop_cheat_caller_address(token_address);
+    
+    start_cheat_caller_address(token_address, contract_address_const::<ALICE>());
+    usdt_token.approve(contract.contract_address, 25_000000);
+    stop_cheat_caller_address(token_address);
+    
+    start_cheat_caller_address(contract.contract_address, contract_address_const::<ALICE>());
+    contract.mint_share(token_address);
+    stop_cheat_caller_address(contract.contract_address);
+    
+    // Give Bob 2 shares (low weight voter)
+    start_cheat_caller_address(token_address, contract_address_const::<OWNER>());
+    usdt_token.transfer(contract_address_const::<BOB>(), 2_000000); // 2 USDT
+    stop_cheat_caller_address(token_address);
+    
+    start_cheat_caller_address(token_address, contract_address_const::<BOB>());
+    usdt_token.approve(contract.contract_address, 2_000000);
+    stop_cheat_caller_address(token_address);
+    
+    start_cheat_caller_address(contract.contract_address, contract_address_const::<BOB>());
+    contract.mint_share(token_address);
+    stop_cheat_caller_address(contract.contract_address);
+    
+    // Give Charlie 2 shares (low weight voter)
+    start_cheat_caller_address(token_address, contract_address_const::<OWNER>());
+    usdt_token.transfer(contract_address_const::<CHARLIE>(), 2_000000); // 2 USDT
+    stop_cheat_caller_address(token_address);
+    
+    start_cheat_caller_address(token_address, contract_address_const::<CHARLIE>());
+    usdt_token.approve(contract.contract_address, 2_000000);
+    stop_cheat_caller_address(token_address);
+    
+    start_cheat_caller_address(contract.contract_address, contract_address_const::<CHARLIE>());
+    contract.mint_share(token_address);
+    stop_cheat_caller_address(contract.contract_address);
 }
 
 #[test]
@@ -66,15 +113,15 @@ fn test_governance_parameters() {
     start_cheat_caller_address(contract.contract_address, contract_address_const::<OWNER>());
 
     // Check default governance parameters
-    let (quorum, threshold) = contract.get_governance_parameters();
+    let (quorum, voting_period) = contract.get_governance_parameters();
     assert(quorum == 50, 'Default quorum should be 50%');
-    assert(threshold == 60, 'Default threshold should be 60%');
+    assert(voting_period == 2, 'Default voting period is 2');
 
     // Update governance parameters
-    contract.set_governance_parameters(40, 70);
-    let (new_quorum, new_threshold) = contract.get_governance_parameters();
+    contract.set_governance_parameters(40, 3);
+    let (new_quorum, new_voting_period) = contract.get_governance_parameters();
     assert(new_quorum == 40, 'Quorum should be updated');
-    assert(new_threshold == 70, 'Threshold should be updated');
+    assert(new_voting_period == 3, 'Voting period should be updated');
 
     stop_cheat_caller_address(contract.contract_address);
 }
@@ -99,6 +146,7 @@ fn test_submit_withdrawal_request() {
     assert(request.requester == contract_address_const::<OWNER>(), 'Wrong requester');
     assert(request.amount == amount, 'Wrong amount');
     assert(request.deadline_timestamp == deadline, 'Wrong deadline');
+    assert(request.voting_deadline == 1000 + (2 * SECONDS_PER_DAY), 'Wrong voting deadline');
     assert(!request.is_executed, 'Should not be executed');
     assert(!request.is_cancelled, 'Should not be cancelled');
 

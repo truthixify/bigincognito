@@ -63,6 +63,7 @@ pub trait IBigIncGenesis<TContractState> {
 
     // Governance view functions
     fn get_withdrawal_request(self: @TContractState, request_id: u256) -> WithdrawalRequest;
+    fn get_vote_status(self: @TContractState, request_id: u256) -> VoteStatus;
     fn get_governance_parameters(self: @TContractState) -> (u256, u256);
 }
 
@@ -362,7 +363,7 @@ pub mod BigIncGenesis {
             let token = IERC20Dispatcher { contract_address: token_address };
             let amount = token.allowance(caller, contract_address);
 
-            assert(amount > 0, 'Amount must be > 0');
+            assert(amount > 0, 'insufficient allowance');
             assert(token.balance_of(caller) >= amount, 'Insufficient token balance');
 
             let current_price = if self.is_presale_active.read() {
@@ -897,6 +898,10 @@ pub mod BigIncGenesis {
         fn get_withdrawal_request(self: @ContractState, request_id: u256) -> WithdrawalRequest {
             self.withdrawal_requests.read(request_id)
         }
+        
+        fn get_vote_status(self: @ContractState, request_id: u256) -> VoteStatus {
+            self._calculate_vote_status(request_id)
+        }
 
         fn get_governance_parameters(self: @ContractState) -> (u256, u256) {
             (self.quorum_percentage.read(), self.voting_period_days.read())
@@ -943,16 +948,17 @@ pub mod BigIncGenesis {
             // Calculate total voting power and votes
             while i < shareholder_count {
                 let shareholder = self.shareholder_addresses.read(i);
-                if self.is_shareholder_map.read(shareholder) {
-                    let voting_power = self.shareholders.read(shareholder);
-                    total_voting_power += voting_power;
+                
+                let shareholder_balance = self.shareholders.read(shareholder);
+                if shareholder_balance > 0 {
+                    total_voting_power += shareholder_balance;
 
                     if self.votes.read((request_id, shareholder)) {
                         let vote_choice = self.vote_choices.read((request_id, shareholder));
                         if vote_choice {
-                            total_votes_for += voting_power;
+                            total_votes_for += shareholder_balance;
                         } else {
-                            total_votes_against += voting_power;
+                            total_votes_against += shareholder_balance;
                         }
                     }
                 }
@@ -960,8 +966,14 @@ pub mod BigIncGenesis {
             }
 
             let total_votes_cast = total_votes_for + total_votes_against;
-            let quorum_threshold = (total_voting_power * self.quorum_percentage.read()) / 100;
-            let quorum_reached = total_votes_cast >= quorum_threshold;
+            
+            
+            // Quorum is reached if enough voting power participated
+            let quorum_reached = if total_voting_power > 0 {
+                (total_votes_cast * 100) >= (total_voting_power * self.quorum_percentage.read())
+            } else {
+                false
+            };
 
             let approved = if total_votes_cast > 0 {
                 total_votes_for > total_votes_against
