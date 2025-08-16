@@ -3,9 +3,7 @@ use contract_::BigIncGenesis::{
 };
 use core::num::traits::Zero;
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
-use snforge_std::{
-    CheatSpan, EventSpyAssertionsTrait, cheat_block_timestamp, cheat_caller_address, spy_events,
-};
+use snforge_std::{CheatSpan, EventSpyAssertionsTrait, cheat_caller_address, spy_events};
 use starknet::ContractAddress;
 use super::setup::{deploy_mock_erc20, owner, setup};
 

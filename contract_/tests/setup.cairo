@@ -2,11 +2,8 @@ use contract_::BigIncGenesis::IBigIncGenesisDispatcher;
 use core::result::ResultTrait;
 use openzeppelin::token::erc20::interface::IERC20Dispatcher;
 use openzeppelin::utils::serde::SerializedAppend;
-use snforge_std::{
-    ContractClassTrait, DeclareResultTrait, declare, start_cheat_caller_address,
-    stop_cheat_caller_address,
-};
-use starknet::{ContractAddress, contract_address_const};
+use snforge_std::{ContractClassTrait, DeclareResultTrait, declare};
+use starknet::ContractAddress;
 
 pub const OWNER: felt252 = 'owner';
 pub const USER1: felt252 = 'user1';

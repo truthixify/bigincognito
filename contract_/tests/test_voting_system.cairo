@@ -1,13 +1,9 @@
-use contract_::BigIncGenesis::{
-    IBigIncGenesisDispatcher, IBigIncGenesisDispatcherTrait, VoteStatus, WithdrawalRequest,
-};
-use contract_::MockERC20::{IMockERC20Dispatcher, IMockERC20DispatcherTrait};
+use contract_::BigIncGenesis::{IBigIncGenesisDispatcher, IBigIncGenesisDispatcherTrait};
 use core::traits::Into;
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 use snforge_std::{
-    ContractClassTrait, DeclareResultTrait, EventSpy, EventSpyTrait, declare, spy_events,
-    start_cheat_block_timestamp, start_cheat_caller_address, stop_cheat_block_timestamp,
-    stop_cheat_caller_address,
+    ContractClassTrait, DeclareResultTrait, declare, start_cheat_block_timestamp,
+    start_cheat_caller_address, stop_cheat_block_timestamp, stop_cheat_caller_address,
 };
 use starknet::{ContractAddress, contract_address_const};
 
