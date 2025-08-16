@@ -748,7 +748,9 @@ pub mod BigIncGenesis {
             let current_timestamp = get_block_timestamp();
             let requester = get_caller_address();
 
-            let voting_period_seconds: u64 = (self.voting_period_days.read() * SECONDS_PER_DAY).try_into().unwrap();
+            let voting_period_seconds: u64 = (self.voting_period_days.read() * SECONDS_PER_DAY)
+                .try_into()
+                .unwrap();
             let voting_deadline = current_timestamp + voting_period_seconds;
 
             // Create expectation hash from the milestone URI content and deadline
@@ -788,24 +790,24 @@ pub mod BigIncGenesis {
 
         fn vote_on_withdrawal_request(ref self: ContractState, request_id: u256, approve: bool) {
             self.pausable.assert_not_paused();
-            
+
             let caller = get_caller_address();
             assert(self.is_shareholder_map.read(caller), 'Not a shareholder');
-            
+
             let request = self.withdrawal_requests.read(request_id);
             assert(!request.is_executed, 'Already executed');
             assert(!request.is_cancelled, 'Request cancelled');
             assert(get_block_timestamp() <= request.voting_deadline, 'Voting period ended');
-            
+
             // Check if already voted
             assert(!self.votes.read((request_id, caller)), 'Already voted');
-            
+
             // Record the vote
             self.votes.write((request_id, caller), true);
             self.vote_choices.write((request_id, caller), approve);
-            
+
             let vote_weight = self.shareholders.read(caller);
-            
+
             self.emit(VoteCast { request_id, voter: caller, approve, vote_weight });
         }
 
@@ -816,25 +818,30 @@ pub mod BigIncGenesis {
             let mut request = self.withdrawal_requests.read(request_id);
             assert(!request.is_executed, 'Already executed');
             assert(!request.is_cancelled, 'Request cancelled');
-            
+
             // Check if voting period has ended
             let current_timestamp = get_block_timestamp();
             assert(current_timestamp > request.voting_deadline, 'Voting period not ended');
-            
+
             // Also check execution deadline
-            assert(current_timestamp >= request.deadline_timestamp, 'Execution deadline not reached');
+            assert(
+                current_timestamp >= request.deadline_timestamp, 'Execution deadline not reached',
+            );
 
             let vote_status = self._calculate_vote_status(request_id);
             assert(vote_status.quorum_reached, 'Quorum not reached');
             assert(vote_status.approved, 'Proposal not approved');
-            
+
             // Emit voting ended event
-            self.emit(VotingEnded {
-                request_id,
-                total_votes_for: vote_status.total_votes_for,
-                total_votes_against: vote_status.total_votes_against,
-                approved: vote_status.approved,
-            });
+            self
+                .emit(
+                    VotingEnded {
+                        request_id,
+                        total_votes_for: vote_status.total_votes_for,
+                        total_votes_against: vote_status.total_votes_against,
+                        approved: vote_status.approved,
+                    },
+                );
 
             let token_address = request.token_address;
             let amount = request.amount;
@@ -898,7 +905,7 @@ pub mod BigIncGenesis {
         fn get_withdrawal_request(self: @ContractState, request_id: u256) -> WithdrawalRequest {
             self.withdrawal_requests.read(request_id)
         }
-        
+
         fn get_vote_status(self: @ContractState, request_id: u256) -> VoteStatus {
             self._calculate_vote_status(request_id)
         }
@@ -948,7 +955,7 @@ pub mod BigIncGenesis {
             // Calculate total voting power and votes
             while i < shareholder_count {
                 let shareholder = self.shareholder_addresses.read(i);
-                
+
                 let shareholder_balance = self.shareholders.read(shareholder);
                 if shareholder_balance > 0 {
                     total_voting_power += shareholder_balance;
@@ -966,8 +973,7 @@ pub mod BigIncGenesis {
             }
 
             let total_votes_cast = total_votes_for + total_votes_against;
-            
-            
+
             // Quorum is reached if enough voting power participated
             let quorum_reached = if total_voting_power > 0 {
                 (total_votes_cast * 100) >= (total_voting_power * self.quorum_percentage.read())

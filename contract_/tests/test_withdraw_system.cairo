@@ -65,42 +65,42 @@ fn deploy_contract_with_tokens() -> (IBigIncGenesisDispatcher, ContractAddress, 
 
 fn setup_shareholders(contract: IBigIncGenesisDispatcher, token_address: ContractAddress) {
     let usdt_token = IERC20Dispatcher { contract_address: token_address };
-    
+
     // Give Alice 25 shares (high weight voter)
     start_cheat_caller_address(token_address, contract_address_const::<OWNER>());
     usdt_token.transfer(contract_address_const::<ALICE>(), 25_000000); // 25 USDT
     stop_cheat_caller_address(token_address);
-    
+
     start_cheat_caller_address(token_address, contract_address_const::<ALICE>());
     usdt_token.approve(contract.contract_address, 25_000000);
     stop_cheat_caller_address(token_address);
-    
+
     start_cheat_caller_address(contract.contract_address, contract_address_const::<ALICE>());
     contract.mint_share(token_address);
     stop_cheat_caller_address(contract.contract_address);
-    
+
     // Give Bob 2 shares (low weight voter)
     start_cheat_caller_address(token_address, contract_address_const::<OWNER>());
     usdt_token.transfer(contract_address_const::<BOB>(), 2_000000); // 2 USDT
     stop_cheat_caller_address(token_address);
-    
+
     start_cheat_caller_address(token_address, contract_address_const::<BOB>());
     usdt_token.approve(contract.contract_address, 2_000000);
     stop_cheat_caller_address(token_address);
-    
+
     start_cheat_caller_address(contract.contract_address, contract_address_const::<BOB>());
     contract.mint_share(token_address);
     stop_cheat_caller_address(contract.contract_address);
-    
+
     // Give Charlie 2 shares (low weight voter)
     start_cheat_caller_address(token_address, contract_address_const::<OWNER>());
     usdt_token.transfer(contract_address_const::<CHARLIE>(), 2_000000); // 2 USDT
     stop_cheat_caller_address(token_address);
-    
+
     start_cheat_caller_address(token_address, contract_address_const::<CHARLIE>());
     usdt_token.approve(contract.contract_address, 2_000000);
     stop_cheat_caller_address(token_address);
-    
+
     start_cheat_caller_address(contract.contract_address, contract_address_const::<CHARLIE>());
     contract.mint_share(token_address);
     stop_cheat_caller_address(contract.contract_address);
