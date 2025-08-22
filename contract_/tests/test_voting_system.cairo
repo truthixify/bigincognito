@@ -135,11 +135,6 @@ fn test_wealth_based_voting_high_weight_wins() {
     contract.vote_on_withdrawal_request(request_id, false);
     stop_cheat_caller_address(contract.contract_address);
 
-    // Owner (18M shares) votes FOR - this ensures quorum is reached
-    start_cheat_caller_address(contract.contract_address, contract_address_const::<OWNER>());
-    contract.vote_on_withdrawal_request(request_id, true);
-    stop_cheat_caller_address(contract.contract_address);
-
     // Fast forward past voting deadline and execution deadline
     let voting_deadline_passed = 1000 + (2 * SECONDS_PER_DAY) + 1;
     start_cheat_block_timestamp(contract.contract_address, voting_deadline_passed);
@@ -187,11 +182,6 @@ fn test_wealth_based_voting_low_weight_loses() {
     // Charlie (2 shares) votes FOR
     start_cheat_caller_address(contract.contract_address, contract_address_const::<CHARLIE>());
     contract.vote_on_withdrawal_request(request_id, true);
-    stop_cheat_caller_address(contract.contract_address);
-
-    // Owner (18M shares) votes AGAINST - this ensures quorum is reached but proposal fails
-    start_cheat_caller_address(contract.contract_address, contract_address_const::<OWNER>());
-    contract.vote_on_withdrawal_request(request_id, false);
     stop_cheat_caller_address(contract.contract_address);
 
     // Fast forward past voting deadline and execution deadline
@@ -329,4 +319,24 @@ fn test_voting_deadline_calculation() {
 
     stop_cheat_block_timestamp(contract.contract_address);
     stop_cheat_caller_address(contract.contract_address);
+}
+
+#[test]
+#[should_panic(expected: ('Requester cannot vote',))]
+fn test_requester_cannot_vote_on_own_request() {
+    let (contract, usdt_address, _) = deploy_contract_with_tokens();
+
+    // Owner submits a withdrawal request
+    start_cheat_caller_address(contract.contract_address, contract_address_const::<OWNER>());
+    start_cheat_block_timestamp(contract.contract_address, 1000);
+
+    let amount = 10000_u256;
+    let deadline = 5000_u64; // future deadline
+    let milestone_uri: ByteArray = "ipfs://QmRequesterCannotVote...";
+
+    let request_id = contract
+        .submit_withdrawal_request(usdt_address, amount, deadline, milestone_uri);
+
+    // Owner (who is the requester) attempts to vote -> should panic
+    contract.vote_on_withdrawal_request(request_id, true);
 }

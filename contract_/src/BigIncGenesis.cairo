@@ -798,6 +798,7 @@ pub mod BigIncGenesis {
             assert(!request.is_executed, 'Already executed');
             assert(!request.is_cancelled, 'Request cancelled');
             assert(get_block_timestamp() <= request.voting_deadline, 'Voting period ended');
+            assert(caller != request.requester, 'Requester cannot vote');
 
             // Check if already voted
             assert(!self.votes.read((request_id, caller)), 'Already voted');
@@ -949,6 +950,10 @@ pub mod BigIncGenesis {
             let mut total_votes_against = 0_u256;
             let mut total_voting_power = 0_u256;
 
+            // Exclude the requester from the voting power and counting
+            let request = self.withdrawal_requests.read(request_id);
+            let requester = request.requester;
+
             let shareholder_count = self.shareholder_count.read();
             let mut i = 0;
 
@@ -956,16 +961,19 @@ pub mod BigIncGenesis {
             while i < shareholder_count {
                 let shareholder = self.shareholder_addresses.read(i);
 
-                let shareholder_balance = self.shareholders.read(shareholder);
-                if shareholder_balance > 0 {
-                    total_voting_power += shareholder_balance;
+                // Skip requester from quorum denominator and vote counting
+                if shareholder != requester {
+                    let shareholder_balance = self.shareholders.read(shareholder);
+                    if shareholder_balance > 0 {
+                        total_voting_power += shareholder_balance;
 
-                    if self.votes.read((request_id, shareholder)) {
-                        let vote_choice = self.vote_choices.read((request_id, shareholder));
-                        if vote_choice {
-                            total_votes_for += shareholder_balance;
-                        } else {
-                            total_votes_against += shareholder_balance;
+                        if self.votes.read((request_id, shareholder)) {
+                            let vote_choice = self.vote_choices.read((request_id, shareholder));
+                            if vote_choice {
+                                total_votes_for += shareholder_balance;
+                            } else {
+                                total_votes_against += shareholder_balance;
+                            }
                         }
                     }
                 }
@@ -987,7 +995,6 @@ pub mod BigIncGenesis {
                 false
             };
 
-            let request = self.withdrawal_requests.read(request_id);
             let voting_ended = get_block_timestamp() > request.voting_deadline;
 
             VoteStatus {
