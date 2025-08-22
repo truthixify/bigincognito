@@ -982,14 +982,22 @@ pub mod BigIncGenesis {
 
             let total_votes_cast = total_votes_for + total_votes_against;
 
-            // Quorum is reached if enough voting power participated
-            let quorum_reached = if total_voting_power > 0 {
+            // Undisputed FOR: any FOR votes with zero AGAINST should approve and satisfy quorum
+            let undisputed_for = (total_votes_for > 0) && (total_votes_against == 0);
+
+            // Quorum is reached if enough voting power participated, unless undisputed FOR
+            let quorum_reached = if undisputed_for {
+                true
+            } else if total_voting_power > 0 {
                 (total_votes_cast * 100) >= (total_voting_power * self.quorum_percentage.read())
             } else {
                 false
             };
 
-            let approved = if total_votes_cast > 0 {
+            // Approved if undisputed FOR, otherwise require FOR > AGAINST with at least one vote
+            let approved = if undisputed_for {
+                true
+            } else if total_votes_cast > 0 {
                 total_votes_for > total_votes_against
             } else {
                 false

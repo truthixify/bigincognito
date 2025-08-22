@@ -23,6 +23,43 @@ fn deploy_mock_erc20(initial_supply: u256, recipient: ContractAddress) -> Contra
     contract_address
 }
 
+#[test]
+fn test_undisputed_single_small_weight_approves() {
+    let (contract, usdt_address, _) = deploy_contract_with_tokens();
+
+    // Submit withdrawal request
+    start_cheat_caller_address(contract.contract_address, contract_address_const::<OWNER>());
+    start_cheat_block_timestamp(contract.contract_address, 1000);
+
+    let amount = 10000_u256;
+    let deadline = 5000_u64; // Future execution deadline
+    let milestone_uri: ByteArray = "ipfs://QmUndisputedApprove...";
+
+    let request_id = contract
+        .submit_withdrawal_request(usdt_address, amount, deadline, milestone_uri);
+
+    stop_cheat_caller_address(contract.contract_address);
+
+    // Bob (2 shares - small weight) votes FOR, and nobody votes AGAINST
+    start_cheat_caller_address(contract.contract_address, contract_address_const::<BOB>());
+    contract.vote_on_withdrawal_request(request_id, true);
+    stop_cheat_caller_address(contract.contract_address);
+
+    // Fast forward past voting deadline and execution deadline
+    let voting_deadline_passed = 1000 + (2 * SECONDS_PER_DAY) + 1;
+    start_cheat_block_timestamp(contract.contract_address, voting_deadline_passed);
+
+    // Execute withdrawal - should succeed because undisputed FOR overrides quorum
+    start_cheat_caller_address(contract.contract_address, contract_address_const::<OWNER>());
+    contract.execute_withdrawal(request_id);
+
+    let request = contract.get_withdrawal_request(request_id);
+    assert(request.is_executed, 'Undisputed FOR should approve');
+
+    stop_cheat_block_timestamp(contract.contract_address);
+    stop_cheat_caller_address(contract.contract_address);
+}
+
 fn deploy_contract_with_tokens() -> (IBigIncGenesisDispatcher, ContractAddress, ContractAddress) {
     // Deploy mock tokens first
     let usdt_address = deploy_mock_erc20(INITIAL_SUPPLY, contract_address_const::<OWNER>());
